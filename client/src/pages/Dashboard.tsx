@@ -34,6 +34,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useJournal } from "@/contexts/JournalContext";
 import AccountManager from "@/components/AccountManager";
+import ExportData from "@/components/ExportData";
 
 const MONTHS_SHORT = [
   "Ene", "Feb", "Mar", "Abr", "May", "Jun",
@@ -119,12 +120,13 @@ const MonthlyTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function DashboardPage() {
-  const { getAllAccounts, getYearMetrics, getAccount, getAccountBalance } = useJournal();
+  const { getAllAccounts, getYearMetrics, getAccount, getAccountBalance, getTradesByAccount } = useJournal();
   const currentYear = new Date().getFullYear();
   const [selectedAccountId, setSelectedAccountId] = useState("default-account");
   const [yearDropdown, setYearDropdown] = useState(false);
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [showComparison, setShowComparison] = useState(false);
+  const [selectedInstrument, setSelectedInstrument] = useState<string | null>(null);
 
   const accounts = getAllAccounts();
   const selectedAccount = getAccount(selectedAccountId);
@@ -164,6 +166,14 @@ export default function DashboardPage() {
     [metrics.months]
   );
 
+  // Get unique instruments for filter
+  const instruments = useMemo(() => {
+    const allTrades = getTradesByAccount(selectedAccountId);
+    const yearTrades = allTrades.filter((t) => t.date.startsWith(String(selectedYear)));
+    const unique = new Set(yearTrades.map((t) => t.instrument));
+    return Array.from(unique).sort();
+  }, [selectedAccountId, selectedYear, getTradesByAccount]);
+
   // Comparison data (all accounts)
   const comparisonData = useMemo(() => {
     return accounts.map((acc) => {
@@ -194,6 +204,25 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-2">
           <AccountManager selectedAccountId={selectedAccountId} onSelectAccount={setSelectedAccountId} />
+          {/* Instrument filter */}
+          {instruments.length > 0 && (
+            <div className="flex items-center gap-1">
+              <select
+                value={selectedInstrument || ""}
+                onChange={(e) => setSelectedInstrument(e.target.value || null)}
+                className="px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors"
+              >
+                <option value="">Todos los instrumentos</option>
+                {instruments.map((inst) => (
+                  <option key={inst} value={inst}>
+                    {inst}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {/* Export button */}
+          <ExportData accountId={selectedAccountId} year={selectedYear} />
           {/* Year selector */}
           <div className="relative">
             <button

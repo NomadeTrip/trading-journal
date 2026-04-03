@@ -23,8 +23,10 @@ export interface TradeEntry {
   accountId: string; // which account this trade belongs to
   result: TradeResult;
   profit: number; // positive = gain, negative = loss
+  instrument: string; // e.g., "EUR/USD", "NASDAQ", "BTC/USD"
   notes: string;
   imageUrl: string; // base64 or URL of trade screenshot
+  createdAt: string; // timestamp for ordering multiple trades per day
 }
 
 export interface JournalData {
@@ -182,8 +184,9 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
 
   // Trade management
   const setTrade = useCallback(
-    (date: string, accountId: string, trade: Omit<TradeEntry, "id" | "date" | "accountId">) => {
-      const id = `${accountId}-${date}`;
+    (date: string, accountId: string, trade: Omit<TradeEntry, "id" | "date" | "accountId" | "createdAt">) => {
+      const id = `trade-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const createdAt = new Date().toISOString();
       setData((prev) => ({
         ...prev,
         trades: {
@@ -193,6 +196,7 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
             id,
             date,
             accountId,
+            createdAt,
           },
         },
       }));
@@ -215,7 +219,10 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
 
   // Queries
   const getTradesByDate = useCallback(
-    (date: string) => Object.values(data.trades).filter((t) => t.date === date),
+    (date: string) => 
+      Object.values(data.trades)
+        .filter((t) => t.date === date)
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     [data.trades]
   );
 

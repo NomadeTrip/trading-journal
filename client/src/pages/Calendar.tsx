@@ -1,6 +1,6 @@
 /**
  * Calendar Page — Trading Journal Pro (Multi-Account)
- * Design: Swiss International Style — calendario mensual con celdas de color semántico
+ * Design: Swiss International Style — calendario mensual con soporte para múltiples trades
  * TP=verde esmeralda, SL=rojo coral, BE=gris neutro
  */
 
@@ -14,6 +14,7 @@ import {
   Target,
   Plus,
   Settings2,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useJournal } from "@/contexts/JournalContext";
@@ -101,6 +102,7 @@ export default function CalendarPage() {
   const [selectedAccountId, setSelectedAccountId] = useState("default-account");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
 
   const account = getAccount(selectedAccountId);
   const metrics = getAccountMetrics(selectedAccountId, year, month);
@@ -125,11 +127,23 @@ export default function CalendarPage() {
   const handleSaveTrade = (trade: any) => {
     if (selectedDate) {
       setTrade(selectedDate, selectedAccountId, trade);
+      setModalOpen(false);
     }
   };
 
   const handleDeleteTrade = (tradeId: string) => {
     deleteTrade(tradeId);
+    setModalOpen(false);
+  };
+
+  const toggleDayExpanded = (dateStr: string) => {
+    const newExpanded = new Set(expandedDays);
+    if (newExpanded.has(dateStr)) {
+      newExpanded.delete(dateStr);
+    } else {
+      newExpanded.add(dateStr);
+    }
+    setExpandedDays(newExpanded);
   };
 
   // Build calendar grid
@@ -141,10 +155,28 @@ export default function CalendarPage() {
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
   // Get trades for each day (only for selected account)
-  const getTradeForDay = (day: number) => {
+  const getTradesForDay = (day: number) => {
     const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     const trades = getTradesByDate(dateStr);
-    return trades.find((t) => t.accountId === selectedAccountId);
+    return trades.filter((t) => t.accountId === selectedAccountId);
+  };
+
+  // Get dominant result for day (for color coding)
+  const getDayResult = (day: number) => {
+    const trades = getTradesForDay(day);
+    if (trades.length === 0) return null;
+    
+    // Prioridad: TP > SL > BE
+    if (trades.some(t => t.result === "TP")) return "TP";
+    if (trades.some(t => t.result === "SL")) return "SL";
+    if (trades.some(t => t.result === "BE")) return "BE";
+    return null;
+  };
+
+  // Calculate day profit
+  const getDayProfit = (day: number) => {
+    const trades = getTradesForDay(day);
+    return trades.reduce((sum, t) => sum + t.profit, 0);
   };
 
   return (
@@ -241,102 +273,197 @@ export default function CalendarPage() {
             }
 
             const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-            const trade = getTradeForDay(day);
+            const dayTrades = getTradesForDay(day);
+            const dayResult = getDayResult(day);
+            const dayProfit = getDayProfit(day);
             const isToday = dateStr === todayStr;
             const dayOfWeek = idx % 7;
             const isWeekend = dayOfWeek === 5 || dayOfWeek === 6;
+            const isExpanded = expandedDays.has(dateStr);
 
             const cellBg =
-              trade?.result === "TP"
+              dayResult === "TP"
                 ? "bg-emerald-50 hover:bg-emerald-100/80"
-                : trade?.result === "SL"
+                : dayResult === "SL"
                 ? "bg-red-50 hover:bg-red-100/80"
-                : trade?.result === "BE"
+                : dayResult === "BE"
                 ? "bg-gray-100 hover:bg-gray-200/80"
                 : isWeekend
                 ? "bg-gray-50/50 hover:bg-gray-100/50"
                 : "bg-white hover:bg-gray-50";
 
             const borderLeft =
-              trade?.result === "TP"
+              dayResult === "TP"
                 ? "border-l-2 border-l-emerald-400"
-                : trade?.result === "SL"
+                : dayResult === "SL"
                 ? "border-l-2 border-l-red-400"
-                : trade?.result === "BE"
+                : dayResult === "BE"
                 ? "border-l-2 border-l-gray-400"
                 : "";
 
             return (
-              <button
+              <div
                 key={dateStr}
-                onClick={() => handleDayClick(day)}
                 className={cn(
-                  "h-24 border-b border-r border-gray-100 p-2 text-left transition-all duration-150 relative group flex flex-col",
+                  "border-b border-r border-gray-100 transition-all duration-150 relative",
                   cellBg,
-                  borderLeft
+                  borderLeft,
+                  isExpanded ? "col-span-7 h-auto" : "h-24"
                 )}
               >
-                {/* Day number */}
-                <div className="flex items-start justify-between mb-1">
-                  <span
-                    className={cn(
-                      "text-xs font-bold leading-none",
-                      isToday
-                        ? "w-5 h-5 bg-[#111827] text-white rounded-full flex items-center justify-center text-[10px]"
-                        : trade
-                        ? trade.result === "TP"
-                          ? "text-emerald-700"
-                          : trade.result === "SL"
-                          ? "text-red-700"
-                          : "text-gray-600"
-                        : isWeekend
-                        ? "text-gray-300"
-                        : "text-gray-500"
-                    )}
+                {!isExpanded ? (
+                  <button
+                    onClick={() => dayTrades.length > 1 ? toggleDayExpanded(dateStr) : handleDayClick(day)}
+                    className="w-full h-full p-2 text-left flex flex-col group"
                   >
-                    {day}
-                  </span>
-                  {trade?.result && (
-                    <span
-                      className={cn(
-                        "text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider",
-                        trade.result === "TP" && "bg-emerald-500 text-white",
-                        trade.result === "SL" && "bg-red-500 text-white",
-                        trade.result === "BE" && "bg-gray-400 text-white"
+                    {/* Day number */}
+                    <div className="flex items-start justify-between mb-1">
+                      <span
+                        className={cn(
+                          "text-xs font-bold leading-none",
+                          isToday
+                            ? "w-5 h-5 bg-[#111827] text-white rounded-full flex items-center justify-center text-[10px]"
+                            : dayResult
+                            ? dayResult === "TP"
+                              ? "text-emerald-700"
+                              : dayResult === "SL"
+                              ? "text-red-700"
+                              : "text-gray-600"
+                            : isWeekend
+                            ? "text-gray-300"
+                            : "text-gray-500"
+                        )}
+                      >
+                        {day}
+                      </span>
+                      {dayTrades.length > 0 && (
+                        <div className="flex items-center gap-1">
+                          {dayTrades.length > 1 && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500 text-white">
+                              {dayTrades.length}
+                            </span>
+                          )}
+                          {dayResult && (
+                            <span
+                              className={cn(
+                                "text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider",
+                                dayResult === "TP" && "bg-emerald-500 text-white",
+                                dayResult === "SL" && "bg-red-500 text-white",
+                                dayResult === "BE" && "bg-gray-400 text-white"
+                              )}
+                            >
+                              {dayResult}
+                            </span>
+                          )}
+                        </div>
                       )}
-                    >
-                      {trade.result}
-                    </span>
-                  )}
-                </div>
-
-                {/* Trade data */}
-                {trade && (
-                  <div className="flex-1 flex flex-col justify-end">
-                    <p
-                      className={cn(
-                        "text-xs font-bold font-mono leading-none",
-                        trade.profit > 0
-                          ? "text-emerald-600"
-                          : trade.profit < 0
-                          ? "text-red-600"
-                          : "text-gray-500"
-                      )}
-                    >
-                      {formatCurrency(trade.profit)}
-                    </p>
-                  </div>
-                )}
-
-                {/* Add button on hover (empty days) */}
-                {!trade && !isWeekend && (
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="w-7 h-7 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center">
-                      <Plus size={13} className="text-gray-400" />
                     </div>
+
+                    {/* Trade data */}
+                    {dayTrades.length > 0 && (
+                      <div className="flex-1 flex flex-col justify-end">
+                        <p
+                          className={cn(
+                            "text-xs font-bold font-mono leading-none",
+                            dayProfit > 0
+                              ? "text-emerald-600"
+                              : dayProfit < 0
+                              ? "text-red-600"
+                              : "text-gray-500"
+                          )}
+                        >
+                          {formatCurrency(dayProfit)}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Add button on hover (empty days) */}
+                    {dayTrades.length === 0 && !isWeekend && (
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="w-7 h-7 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center">
+                          <Plus size={13} className="text-gray-400" />
+                        </div>
+                      </div>
+                    )}
+                  </button>
+                ) : (
+                  // Expanded view for multiple trades
+                  <div className="p-4 space-y-3">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">{formatDate(dateStr)}</p>
+                        <p className="text-xs text-gray-500">{dayTrades.length} trade{dayTrades.length !== 1 ? 's' : ''}</p>
+                      </div>
+                      <button
+                        onClick={() => toggleDayExpanded(dateStr)}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        <ChevronDown size={18} />
+                      </button>
+                    </div>
+
+                    {/* Trades list */}
+                    <div className="space-y-2">
+                      {dayTrades.map((trade) => (
+                        <div
+                          key={trade.id}
+                          className="bg-white/60 rounded-lg p-3 border border-gray-200 hover:border-gray-300 transition-colors"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span
+                                  className={cn(
+                                    "text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider",
+                                    trade.result === "TP" && "bg-emerald-500 text-white",
+                                    trade.result === "SL" && "bg-red-500 text-white",
+                                    trade.result === "BE" && "bg-gray-400 text-white"
+                                  )}
+                                >
+                                  {trade.result}
+                                </span>
+                                <span className="text-xs font-semibold text-gray-600">{trade.instrument}</span>
+                              </div>
+                              <p
+                                className={cn(
+                                  "text-xs font-bold font-mono",
+                                  trade.profit > 0
+                                    ? "text-emerald-600"
+                                    : trade.profit < 0
+                                    ? "text-red-600"
+                                    : "text-gray-500"
+                                )}
+                              >
+                                {formatCurrency(trade.profit)}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setSelectedDate(dateStr);
+                                // TODO: Open edit modal for this specific trade
+                              }}
+                              className="text-gray-400 hover:text-blue-500 transition-colors"
+                            >
+                              <Plus size={16} className="rotate-45" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Add trade button */}
+                    <button
+                      onClick={() => {
+                        setSelectedDate(dateStr);
+                        setModalOpen(true);
+                      }}
+                      className="w-full py-2 px-3 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-500 text-gray-600 hover:text-blue-500 transition-colors text-sm font-medium"
+                    >
+                      + Agregar trade
+                    </button>
                   </div>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
@@ -364,14 +491,23 @@ export default function CalendarPage() {
           onClose={() => setModalOpen(false)}
           date={selectedDate}
           accountId={selectedAccountId}
-          existingTradeId={getTradeForDay(parseInt(selectedDate.split("-")[2]))?. id}
           onSave={handleSaveTrade}
           onDelete={() => {
-            const trade = getTradeForDay(parseInt(selectedDate.split("-")[2]));
-            if (trade) handleDeleteTrade(trade.id);
+            // TODO: Handle delete for specific trade
           }}
         />
       )}
     </div>
   );
+}
+
+function formatDate(dateStr: string): string {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const d = new Date(year, month - 1, day);
+  return d.toLocaleDateString("es-ES", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 }
