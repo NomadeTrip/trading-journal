@@ -1,5 +1,5 @@
 /**
- * Calendar Page — Trading Journal Pro
+ * Calendar Page — Trading Journal Pro (Multi-Account)
  * Design: Swiss International Style — calendario mensual con celdas de color semántico
  * TP=verde esmeralda, SL=rojo coral, BE=gris neutro
  */
@@ -8,19 +8,17 @@ import { useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  BarChart2,
-  Target,
   DollarSign,
   Percent,
+  BarChart2,
+  Target,
   Plus,
   Settings2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useJournal } from "@/contexts/JournalContext";
 import TradeModal from "@/components/TradeModal";
+import AccountManager from "@/components/AccountManager";
 import { Button } from "@/components/ui/button";
 
 const MONTHS = [
@@ -34,7 +32,6 @@ function getDaysInMonth(year: number, month: number): number {
 }
 
 function getFirstDayOfMonth(year: number, month: number): number {
-  // 0=Sun → convert to Mon-based (0=Mon)
   const day = new Date(year, month - 1, 1).getDay();
   return day === 0 ? 6 : day - 1;
 }
@@ -88,17 +85,25 @@ function MetricCard({ label, value, sub, icon, color = "text-gray-700", trend }:
 }
 
 export default function CalendarPage() {
-  const { getTrade, setTrade, deleteTrade, getMonthMetrics, data } = useJournal();
+  const {
+    getTradesByDate,
+    getMonthTrades,
+    getAccountMetrics,
+    setTrade,
+    deleteTrade,
+    getAccount,
+    getAccountBalance,
+  } = useJournal();
+
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
+  const [selectedAccountId, setSelectedAccountId] = useState("default-account");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingBalance, setEditingBalance] = useState(false);
-  const [balanceInput, setBalanceInput] = useState(String(data.initialBalance));
-  const { setInitialBalance } = useJournal();
 
-  const metrics = getMonthMetrics(year, month);
+  const account = getAccount(selectedAccountId);
+  const metrics = getAccountMetrics(selectedAccountId, year, month);
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
 
@@ -117,10 +122,14 @@ export default function CalendarPage() {
     setModalOpen(true);
   };
 
-  const handleSaveBalance = () => {
-    const val = parseFloat(balanceInput);
-    if (!isNaN(val) && val > 0) setInitialBalance(val);
-    setEditingBalance(false);
+  const handleSaveTrade = (trade: any) => {
+    if (selectedDate) {
+      setTrade(selectedDate, selectedAccountId, trade);
+    }
+  };
+
+  const handleDeleteTrade = (tradeId: string) => {
+    deleteTrade(tradeId);
   };
 
   // Build calendar grid
@@ -131,10 +140,17 @@ export default function CalendarPage() {
 
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
+  // Get trades for each day (only for selected account)
+  const getTradeForDay = (day: number) => {
+    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const trades = getTradesByDate(dateStr);
+    return trades.find((t) => t.accountId === selectedAccountId);
+  };
+
   return (
     <div className="min-h-screen bg-[#F8F9FB] p-6">
       {/* Page header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
             Calendario de Trading
@@ -143,39 +159,7 @@ export default function CalendarPage() {
             Registro diario de operaciones
           </p>
         </div>
-        {/* Initial balance editor */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400 font-medium">Balance inicial:</span>
-          {editingBalance ? (
-            <div className="flex items-center gap-1.5">
-              <div className="relative">
-                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                <input
-                  type="number"
-                  value={balanceInput}
-                  onChange={(e) => setBalanceInput(e.target.value)}
-                  className="pl-6 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm font-mono w-28 focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                  autoFocus
-                  onKeyDown={(e) => e.key === "Enter" && handleSaveBalance()}
-                />
-              </div>
-              <Button size="sm" onClick={handleSaveBalance} className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 px-3">
-                OK
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setEditingBalance(false)} className="h-8 px-2">
-                ✕
-              </Button>
-            </div>
-          ) : (
-            <button
-              onClick={() => { setBalanceInput(String(data.initialBalance)); setEditingBalance(true); }}
-              className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-mono font-semibold text-gray-700 hover:border-emerald-300 hover:text-emerald-600 transition-colors shadow-sm"
-            >
-              {formatCurrency(data.initialBalance, false)}
-              <Settings2 size={12} className="text-gray-400" />
-            </button>
-          )}
-        </div>
+        <AccountManager selectedAccountId={selectedAccountId} onSelectAccount={setSelectedAccountId} />
       </div>
 
       {/* Metrics row */}
@@ -204,7 +188,7 @@ export default function CalendarPage() {
         <MetricCard
           label="Retorno mensual"
           value={`${metrics.returnPct >= 0 ? "+" : ""}${metrics.returnPct.toFixed(2)}%`}
-          sub={`${formatCurrency(metrics.initialBalance, false)} → ${formatCurrency(metrics.finalBalance, false)}`}
+          sub={`${formatCurrency(metrics.initialBalance, false)} → ${formatCurrency(metrics.currentBalance, false)}`}
           icon={<Target size={18} />}
           color={metrics.returnPct >= 0 ? "text-emerald-600" : "text-red-500"}
           trend={metrics.returnPct > 0 ? "up" : metrics.returnPct < 0 ? "down" : "neutral"}
@@ -257,9 +241,8 @@ export default function CalendarPage() {
             }
 
             const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-            const trade = getTrade(dateStr);
+            const trade = getTradeForDay(day);
             const isToday = dateStr === todayStr;
-            // idx % 7: 0=Mon,1=Tue,...,5=Sat,6=Sun
             const dayOfWeek = idx % 7;
             const isWeekend = dayOfWeek === 5 || dayOfWeek === 6;
 
@@ -342,9 +325,6 @@ export default function CalendarPage() {
                     >
                       {formatCurrency(trade.profit)}
                     </p>
-                    <p className="text-[10px] text-gray-400 font-mono mt-0.5">
-                      {formatCurrency(trade.balance, false)}
-                    </p>
                   </div>
                 )}
 
@@ -383,9 +363,13 @@ export default function CalendarPage() {
           open={modalOpen}
           onClose={() => setModalOpen(false)}
           date={selectedDate}
-          existingTrade={getTrade(selectedDate)}
-          onSave={(trade) => setTrade(selectedDate, trade)}
-          onDelete={() => deleteTrade(selectedDate)}
+          accountId={selectedAccountId}
+          existingTradeId={getTradeForDay(parseInt(selectedDate.split("-")[2]))?. id}
+          onSave={handleSaveTrade}
+          onDelete={() => {
+            const trade = getTradeForDay(parseInt(selectedDate.split("-")[2]));
+            if (trade) handleDeleteTrade(trade.id);
+          }}
         />
       )}
     </div>

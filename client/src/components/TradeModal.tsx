@@ -1,6 +1,6 @@
 /**
- * TradeModal — Trading Journal Pro
- * Design: Swiss International Style — modal limpio con inputs precisos
+ * TradeModal — Trading Journal Pro (Multi-Account)
+ * Design: Swiss International Style — modal limpio con selector de cuenta
  * Permite ingresar resultado, profit, balance, notas e imagen del trade
  */
 
@@ -10,14 +10,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { TradeResult, TradeEntry } from "@/contexts/JournalContext";
+import { useJournal, TradeResult } from "@/contexts/JournalContext";
 
 interface TradeModalProps {
   open: boolean;
   onClose: () => void;
   date: string; // "YYYY-MM-DD"
-  existingTrade?: TradeEntry;
-  onSave: (trade: Omit<TradeEntry, "id" | "date">) => void;
+  accountId: string;
+  existingTradeId?: string;
+  onSave: (trade: { result: TradeResult; profit: number; notes: string; imageUrl: string }) => void;
   onDelete?: () => void;
 }
 
@@ -60,16 +61,18 @@ export default function TradeModal({
   open,
   onClose,
   date,
-  existingTrade,
+  accountId,
+  existingTradeId,
   onSave,
   onDelete,
 }: TradeModalProps) {
+  const { getTrade, getAccount } = useJournal();
+  const existingTrade = existingTradeId ? getTrade(existingTradeId) : undefined;
+  const account = getAccount(accountId);
+
   const [result, setResult] = useState<TradeResult>(existingTrade?.result ?? null);
   const [profitStr, setProfitStr] = useState(
     existingTrade ? String(existingTrade.profit) : ""
-  );
-  const [balanceStr, setBalanceStr] = useState(
-    existingTrade ? String(existingTrade.balance) : ""
   );
   const [notes, setNotes] = useState(existingTrade?.notes ?? "");
   const [imageUrl, setImageUrl] = useState(existingTrade?.imageUrl ?? "");
@@ -79,7 +82,6 @@ export default function TradeModal({
     if (open) {
       setResult(existingTrade?.result ?? null);
       setProfitStr(existingTrade ? String(existingTrade.profit) : "");
-      setBalanceStr(existingTrade ? String(existingTrade.balance) : "");
       setNotes(existingTrade?.notes ?? "");
       setImageUrl(existingTrade?.imageUrl ?? "");
     }
@@ -97,12 +99,11 @@ export default function TradeModal({
 
   const handleSave = () => {
     const profit = parseFloat(profitStr) || 0;
-    const balance = parseFloat(balanceStr) || 0;
-    onSave({ result, profit, balance, notes, imageUrl });
+    onSave({ result, profit, notes, imageUrl });
     onClose();
   };
 
-  const isValid = result !== null && balanceStr !== "";
+  const isValid = result !== null && profitStr !== "";
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -110,10 +111,16 @@ export default function TradeModal({
         {/* Header */}
         <div className="bg-[#111827] px-6 py-4">
           <DialogHeader>
-            <DialogTitle className="text-white font-semibold text-base capitalize">
-              {formatDate(date)}
-            </DialogTitle>
-            <p className="text-gray-400 text-xs mt-0.5">Registro de trade</p>
+            <div className="flex items-center gap-2 mb-1">
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: account?.color || "#10b981" }}
+              />
+              <DialogTitle className="text-white font-semibold text-base">
+                {account?.name || "Cuenta"}
+              </DialogTitle>
+            </div>
+            <p className="text-gray-400 text-xs mt-0.5 capitalize">{formatDate(date)}</p>
           </DialogHeader>
         </div>
 
@@ -144,42 +151,22 @@ export default function TradeModal({
             </div>
           </div>
 
-          {/* Profit & Balance */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">
-                Profit / Pérdida (USD)
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
-                  $
-                </span>
-                <input
-                  type="number"
-                  value={profitStr}
-                  onChange={(e) => setProfitStr(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full pl-7 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent bg-gray-50"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">
-                Balance Final (USD)
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
-                  $
-                </span>
-                <input
-                  type="number"
-                  value={balanceStr}
-                  onChange={(e) => setBalanceStr(e.target.value)}
-                  placeholder="0.00"
-                  required
-                  className="w-full pl-7 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent bg-gray-50"
-                />
-              </div>
+          {/* Profit */}
+          <div>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">
+              Profit / Pérdida (USD)
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
+                $
+              </span>
+              <input
+                type="number"
+                value={profitStr}
+                onChange={(e) => setProfitStr(e.target.value)}
+                placeholder="0.00"
+                className="w-full pl-7 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent bg-gray-50"
+              />
             </div>
           </div>
 

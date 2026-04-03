@@ -45,7 +45,9 @@ export default function Layout({ children }: LayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const { getYearMetrics } = useJournal();
   const currentYear = new Date().getFullYear();
-  const yearMetrics = getYearMetrics(currentYear);
+  // Note: Layout muestra solo la cuenta por defecto en sidebar
+  // El selector de cuenta está en Calendar y Dashboard
+  const yearMetrics = getYearMetrics("default-account", currentYear);
 
   return (
     <div className="flex min-h-screen bg-[#F8F9FB]">

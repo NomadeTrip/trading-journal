@@ -1,7 +1,7 @@
 /**
- * Dashboard Page — Trading Journal Pro
+ * Dashboard Page — Trading Journal Pro (Multi-Account)
  * Design: Swiss International Style — análisis anual con gráficos Recharts
- * Equity curve, drawdown, profit factor, tabla mensual
+ * Equity curve, drawdown, profit factor, tabla mensual, comparación multicuenta
  */
 
 import { useState, useMemo } from "react";
@@ -17,6 +17,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
   Cell,
+  Legend,
 } from "recharts";
 import {
   TrendingUp,
@@ -31,7 +32,8 @@ import {
   DollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useJournal, MonthMetrics } from "@/contexts/JournalContext";
+import { useJournal } from "@/contexts/JournalContext";
+import AccountManager from "@/components/AccountManager";
 
 const MONTHS_SHORT = [
   "Ene", "Feb", "Mar", "Abr", "May", "Jun",
@@ -84,31 +86,32 @@ function KpiCard({ label, value, sub, icon, iconBg = "bg-gray-100", valueColor =
   );
 }
 
-// Custom tooltip for equity chart
 const EquityTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-[#111827] text-white px-3 py-2 rounded-lg shadow-xl text-xs">
         <p className="text-gray-400 mb-1">{label}</p>
-        <p className="font-bold font-mono text-emerald-400">
-          {formatCurrency(payload[0].value, false)}
-        </p>
+        {payload.map((entry: any, idx: number) => (
+          <p key={idx} style={{ color: entry.color }} className="font-bold font-mono">
+            {entry.name}: {formatCurrency(entry.value, false)}
+          </p>
+        ))}
       </div>
     );
   }
   return null;
 };
 
-// Custom tooltip for monthly bar chart
 const MonthlyTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
-    const val = payload[0].value;
     return (
       <div className="bg-[#111827] text-white px-3 py-2 rounded-lg shadow-xl text-xs">
         <p className="text-gray-400 mb-1">{label}</p>
-        <p className={cn("font-bold font-mono", val >= 0 ? "text-emerald-400" : "text-red-400")}>
-          {formatCurrency(val)}
-        </p>
+        {payload.map((entry: any, idx: number) => (
+          <p key={idx} style={{ color: entry.color }} className="font-bold font-mono">
+            {entry.name}: {formatCurrency(entry.value)}
+          </p>
+        ))}
       </div>
     );
   }
@@ -116,34 +119,40 @@ const MonthlyTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function DashboardPage() {
-  const { getYearMetrics, data } = useJournal();
+  const { getAllAccounts, getYearMetrics, getAccount, getAccountBalance } = useJournal();
   const currentYear = new Date().getFullYear();
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [selectedAccountId, setSelectedAccountId] = useState("default-account");
   const [yearDropdown, setYearDropdown] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [showComparison, setShowComparison] = useState(false);
 
-  // Available years (current + past 4)
+  const accounts = getAllAccounts();
+  const selectedAccount = getAccount(selectedAccountId);
+  const metrics = useMemo(() => getYearMetrics(selectedAccountId, selectedYear), [selectedAccountId, selectedYear, getYearMetrics]);
+
   const years = useMemo(() => {
     const ys = new Set<number>();
-    Object.keys(data.trades).forEach((d) => ys.add(parseInt(d.split("-")[0])));
     ys.add(currentYear);
+    accounts.forEach((acc) => {
+      const createdYear = parseInt(acc.createdAt.split("-")[0]);
+      for (let y = createdYear; y <= currentYear; y++) ys.add(y);
+    });
     return Array.from(ys).sort((a, b) => b - a);
-  }, [data.trades, currentYear]);
+  }, [accounts, currentYear]);
 
-  const metrics = useMemo(() => getYearMetrics(selectedYear), [getYearMetrics, selectedYear]);
-
-  // Equity curve data — deduplicate by date, take last balance per date
+  // Equity curve data
   const equityData = useMemo(() => {
     const map = new Map<string, number>();
     metrics.equityCurve.forEach((p) => map.set(p.date, p.balance));
     return Array.from(map.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, balance]) => ({
-        date: date.slice(5), // "MM-DD"
+        date: date.slice(5),
         balance,
       }));
   }, [metrics.equityCurve]);
 
-  // Monthly profit bar data
+  // Monthly data
   const monthlyData = useMemo(
     () =>
       metrics.months.map((m, i) => ({
@@ -155,12 +164,26 @@ export default function DashboardPage() {
     [metrics.months]
   );
 
-  const activeMonths = metrics.months.filter((m) => m.tradeCount > 0);
+  // Comparison data (all accounts)
+  const comparisonData = useMemo(() => {
+    return accounts.map((acc) => {
+      const accMetrics = getYearMetrics(acc.id, selectedYear);
+      return {
+        id: acc.id,
+        name: acc.name,
+        color: acc.color,
+        profit: accMetrics.totalProfit,
+        winrate: accMetrics.winrate,
+        trades: accMetrics.tradeCount,
+        balance: getAccountBalance(acc.id),
+      };
+    });
+  }, [accounts, selectedYear, getYearMetrics, getAccountBalance]);
 
   return (
     <div className="min-h-screen bg-[#F8F9FB] p-6">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
             Dashboard de Rendimiento
@@ -169,35 +192,38 @@ export default function DashboardPage() {
             Análisis anual completo de tu operativa
           </p>
         </div>
-        {/* Year selector */}
-        <div className="relative">
-          <button
-            onClick={() => setYearDropdown((v) => !v)}
-            className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm font-semibold text-gray-700 hover:border-gray-300 transition-colors shadow-sm"
-          >
-            {selectedYear}
-            <ChevronDown size={14} className="text-gray-400" />
-          </button>
-          {yearDropdown && (
-            <div className="absolute right-0 top-full mt-1 bg-white border border-gray-100 rounded-lg shadow-lg z-10 overflow-hidden">
-              {years.map((y) => (
-                <button
-                  key={y}
-                  onClick={() => { setSelectedYear(y); setYearDropdown(false); }}
-                  className={cn(
-                    "block w-full px-4 py-2 text-sm text-left hover:bg-gray-50 transition-colors",
-                    y === selectedYear ? "font-bold text-emerald-600 bg-emerald-50" : "text-gray-700"
-                  )}
-                >
-                  {y}
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="flex items-center gap-2">
+          <AccountManager selectedAccountId={selectedAccountId} onSelectAccount={setSelectedAccountId} />
+          {/* Year selector */}
+          <div className="relative">
+            <button
+              onClick={() => setYearDropdown((v) => !v)}
+              className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm font-semibold text-gray-700 hover:border-gray-300 transition-colors shadow-sm"
+            >
+              {selectedYear}
+              <ChevronDown size={14} className="text-gray-400" />
+            </button>
+            {yearDropdown && (
+              <div className="absolute right-0 top-full mt-1 bg-white border border-gray-100 rounded-lg shadow-lg z-10 overflow-hidden">
+                {years.map((y) => (
+                  <button
+                    key={y}
+                    onClick={() => { setSelectedYear(y); setYearDropdown(false); }}
+                    className={cn(
+                      "block w-full px-4 py-2 text-sm text-left hover:bg-gray-50 transition-colors",
+                      y === selectedYear ? "font-bold text-emerald-600 bg-emerald-50" : "text-gray-700"
+                    )}
+                  >
+                    {y}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Hero equity card */}
+      {/* Hero card */}
       <div
         className="relative rounded-2xl overflow-hidden mb-6 shadow-lg"
         style={{ minHeight: 220 }}
@@ -211,9 +237,15 @@ export default function DashboardPage() {
         <div className="absolute inset-0 bg-[#111827]/75" />
         <div className="relative z-10 p-6 flex items-end justify-between h-full" style={{ minHeight: 220 }}>
           <div>
-            <p className="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-1">
-              Rendimiento {selectedYear}
-            </p>
+            <div className="flex items-center gap-2 mb-1">
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: selectedAccount?.color || "#10b981" }}
+              />
+              <p className="text-gray-400 text-xs font-semibold uppercase tracking-widest">
+                {selectedAccount?.name} {selectedYear}
+              </p>
+            </div>
             <p
               className={cn(
                 "text-4xl font-bold font-mono tracking-tight",
@@ -223,15 +255,13 @@ export default function DashboardPage() {
               {formatCurrency(metrics.totalProfit)}
             </p>
             <p className="text-gray-400 text-sm mt-1">
-              {metrics.totalTrades} trades · Winrate {metrics.winrate.toFixed(1)}%
+              {metrics.tradeCount} trades · Winrate {metrics.winrate.toFixed(1)}%
             </p>
           </div>
           <div className="text-right">
             <p className="text-gray-400 text-xs mb-1">Balance actual</p>
             <p className="text-white text-2xl font-bold font-mono">
-              {equityData.length > 0
-                ? formatCurrency(equityData[equityData.length - 1].balance, false)
-                : formatCurrency(data.initialBalance, false)}
+              {formatCurrency(metrics.currentBalance, false)}
             </p>
           </div>
         </div>
@@ -242,7 +272,7 @@ export default function DashboardPage() {
         <KpiCard
           label="Winrate total"
           value={`${metrics.winrate.toFixed(1)}%`}
-          sub={`${metrics.totalTrades} trades totales`}
+          sub={`${metrics.tradeCount} trades totales`}
           icon={<Target size={20} className="text-emerald-600" />}
           iconBg="bg-emerald-50"
           valueColor={metrics.winrate >= 50 ? "text-emerald-600" : "text-red-500"}
@@ -294,18 +324,14 @@ export default function DashboardPage() {
               <h3 className="text-sm font-bold text-gray-900">Equity Curve</h3>
               <p className="text-xs text-gray-400">Crecimiento de la cuenta</p>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-0.5 bg-emerald-500 rounded" />
-              <span className="text-xs text-gray-400">Balance</span>
-            </div>
           </div>
           {equityData.length > 1 ? (
             <ResponsiveContainer width="100%" height={200}>
               <AreaChart data={equityData} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
                 <defs>
                   <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    <stop offset="5%" stopColor={selectedAccount?.color || "#10b981"} stopOpacity={0.15} />
+                    <stop offset="95%" stopColor={selectedAccount?.color || "#10b981"} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
@@ -325,18 +351,18 @@ export default function DashboardPage() {
                 />
                 <Tooltip content={<EquityTooltip />} />
                 <ReferenceLine
-                  y={data.initialBalance}
+                  y={selectedAccount?.initialBalance || 0}
                   stroke="#e5e7eb"
                   strokeDasharray="4 4"
                 />
                 <Area
                   type="monotone"
                   dataKey="balance"
-                  stroke="#10b981"
+                  stroke={selectedAccount?.color || "#10b981"}
                   strokeWidth={2}
                   fill="url(#equityGradient)"
                   dot={false}
-                  activeDot={{ r: 4, fill: "#10b981", strokeWidth: 0 }}
+                  activeDot={{ r: 4, fill: selectedAccount?.color || "#10b981", strokeWidth: 0 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -345,7 +371,6 @@ export default function DashboardPage() {
               <div className="text-center">
                 <TrendingUp size={32} className="mx-auto mb-2 opacity-30" />
                 <p className="text-sm">Sin datos suficientes</p>
-                <p className="text-xs mt-1">Registra trades para ver la curva</p>
               </div>
             </div>
           )}
@@ -371,9 +396,6 @@ export default function DashboardPage() {
                     {MONTHS_SHORT[metrics.bestMonth.month - 1]} {metrics.bestMonth.year} ·{" "}
                     {metrics.bestMonth.tradeCount} trades
                   </p>
-                  <p className="text-xs text-emerald-500 font-mono">
-                    {formatPct(metrics.bestMonth.returnPct)} retorno
-                  </p>
                 </>
               ) : (
                 <p className="text-sm text-gray-400">Sin datos</p>
@@ -396,30 +418,10 @@ export default function DashboardPage() {
                     {MONTHS_SHORT[metrics.worstMonth.month - 1]} {metrics.worstMonth.year} ·{" "}
                     {metrics.worstMonth.tradeCount} trades
                   </p>
-                  <p className="text-xs text-red-400 font-mono">
-                    {formatPct(metrics.worstMonth.returnPct)} retorno
-                  </p>
                 </>
               ) : (
                 <p className="text-sm text-gray-400">Sin datos</p>
               )}
-            </div>
-
-            <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <BarChart2 size={16} className="text-gray-500" />
-                <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Ratio G/P
-                </span>
-              </div>
-              <p className="text-lg font-bold text-gray-800 font-mono">
-                {metrics.avgLoss > 0
-                  ? (metrics.avgWin / metrics.avgLoss).toFixed(2)
-                  : "—"}
-              </p>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Avg win {formatCurrency(metrics.avgWin, false)} · Avg loss {formatCurrency(metrics.avgLoss, false)}
-              </p>
             </div>
           </div>
         </div>
@@ -470,138 +472,90 @@ export default function DashboardPage() {
         </ResponsiveContainer>
       </div>
 
-      {/* Monthly summary table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100">
-          <h3 className="text-sm font-bold text-gray-900">Resumen Mensual</h3>
-          <p className="text-xs text-gray-400">Detalle de rendimiento por mes</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                  Mes
-                </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                  Trades
-                </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                  Profit
-                </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                  Retorno %
-                </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                  Winrate
-                </th>
-                <th className="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                  Balance final
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {metrics.months.map((m, i) => (
-                <tr
-                  key={i}
-                  className={cn(
-                    "border-b border-gray-50 hover:bg-gray-50/50 transition-colors",
-                    m.tradeCount === 0 && "opacity-40"
-                  )}
-                >
-                  <td className="px-5 py-3 font-semibold text-gray-700">
-                    {MONTHS_SHORT[i]}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono text-gray-600">
-                    {m.tradeCount > 0 ? m.tradeCount : "—"}
-                  </td>
-                  <td
-                    className={cn(
-                      "px-4 py-3 text-right font-mono font-semibold",
-                      m.totalProfit > 0
-                        ? "text-emerald-600"
-                        : m.totalProfit < 0
-                        ? "text-red-500"
-                        : "text-gray-400"
-                    )}
-                  >
-                    {m.tradeCount > 0 ? formatCurrency(m.totalProfit) : "—"}
-                  </td>
-                  <td
-                    className={cn(
-                      "px-4 py-3 text-right font-mono",
-                      m.returnPct > 0
-                        ? "text-emerald-600"
-                        : m.returnPct < 0
-                        ? "text-red-500"
-                        : "text-gray-400"
-                    )}
-                  >
-                    {m.tradeCount > 0 ? (
-                      <span
+      {/* Comparison section */}
+      {accounts.length > 1 && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">Comparación de Cuentas</h3>
+              <p className="text-xs text-gray-400">Rendimiento {selectedYear} de todas tus cuentas</p>
+            </div>
+            <button
+              onClick={() => setShowComparison((v) => !v)}
+              className="text-xs font-semibold text-emerald-600 hover:text-emerald-700"
+            >
+              {showComparison ? "Ocultar" : "Ver"}
+            </button>
+          </div>
+          {showComparison && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50/50">
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Cuenta
+                    </th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Trades
+                    </th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Profit
+                    </th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Winrate
+                    </th>
+                    <th className="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Balance
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {comparisonData.map((acc) => (
+                    <tr
+                      key={acc.id}
+                      className={cn(
+                        "border-b border-gray-50 hover:bg-gray-50/50 transition-colors",
+                        acc.trades === 0 && "opacity-40"
+                      )}
+                    >
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-2.5 h-2.5 rounded-full"
+                            style={{ backgroundColor: acc.color }}
+                          />
+                          <span className="font-semibold text-gray-700">{acc.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-gray-600">
+                        {acc.trades > 0 ? acc.trades : "—"}
+                      </td>
+                      <td
                         className={cn(
-                          "px-2 py-0.5 rounded-md text-xs font-semibold",
-                          m.returnPct > 0
-                            ? "bg-emerald-50 text-emerald-700"
-                            : m.returnPct < 0
-                            ? "bg-red-50 text-red-600"
-                            : "bg-gray-100 text-gray-500"
+                          "px-4 py-3 text-right font-mono font-semibold",
+                          acc.profit > 0
+                            ? "text-emerald-600"
+                            : acc.profit < 0
+                            ? "text-red-500"
+                            : "text-gray-400"
                         )}
                       >
-                        {formatPct(m.returnPct)}
-                      </span>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono text-gray-600">
-                    {m.tradeCount > 0 ? `${m.winrate.toFixed(0)}%` : "—"}
-                  </td>
-                  <td className="px-5 py-3 text-right font-mono text-gray-700 font-semibold">
-                    {m.tradeCount > 0 ? formatCurrency(m.finalBalance, false) : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            {activeMonths.length > 0 && (
-              <tfoot>
-                <tr className="bg-[#111827]">
-                  <td className="px-5 py-3 font-bold text-white text-xs uppercase tracking-wider">
-                    Total {selectedYear}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-gray-300">
-                    {metrics.totalTrades}
-                  </td>
-                  <td
-                    className={cn(
-                      "px-4 py-3 text-right font-mono font-bold",
-                      metrics.totalProfit >= 0 ? "text-emerald-400" : "text-red-400"
-                    )}
-                  >
-                    {formatCurrency(metrics.totalProfit)}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono text-gray-300">
-                    —
-                  </td>
-                  <td
-                    className={cn(
-                      "px-4 py-3 text-right font-mono font-bold",
-                      metrics.winrate >= 50 ? "text-emerald-400" : "text-red-400"
-                    )}
-                  >
-                    {metrics.winrate.toFixed(1)}%
-                  </td>
-                  <td className="px-5 py-3 text-right font-mono font-bold text-white">
-                    {equityData.length > 0
-                      ? formatCurrency(equityData[equityData.length - 1].balance, false)
-                      : "—"}
-                  </td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
+                        {acc.trades > 0 ? formatCurrency(acc.profit) : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-gray-600">
+                        {acc.trades > 0 ? `${acc.winrate.toFixed(0)}%` : "—"}
+                      </td>
+                      <td className="px-5 py-3 text-right font-mono text-gray-700 font-semibold">
+                        {formatCurrency(acc.balance, false)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 }
