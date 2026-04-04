@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useJournal } from "@/contexts/JournalContext";
 import TradeModal from "@/components/TradeModal";
+import TradeItem from "@/components/TradeItem";
 import AccountManager from "@/components/AccountManager";
 import { Button } from "@/components/ui/button";
 
@@ -101,6 +102,7 @@ export default function CalendarPage() {
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [selectedAccountId, setSelectedAccountId] = useState("default-account");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
 
@@ -121,6 +123,13 @@ export default function CalendarPage() {
   const handleDayClick = (day: number) => {
     const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     setSelectedDate(dateStr);
+    setSelectedTradeId(null);
+    setModalOpen(true);
+  };
+
+  const handleEditTrade = (tradeId: string, dateStr: string) => {
+    setSelectedDate(dateStr);
+    setSelectedTradeId(tradeId);
     setModalOpen(true);
   };
 
@@ -405,49 +414,12 @@ export default function CalendarPage() {
                     {/* Trades list */}
                     <div className="space-y-2">
                       {dayTrades.map((trade) => (
-                        <div
+                        <TradeItem
                           key={trade.id}
-                          className="bg-white/60 rounded-lg p-3 border border-gray-200 hover:border-gray-300 transition-colors"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span
-                                  className={cn(
-                                    "text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider",
-                                    trade.result === "TP" && "bg-emerald-500 text-white",
-                                    trade.result === "SL" && "bg-red-500 text-white",
-                                    trade.result === "BE" && "bg-gray-400 text-white"
-                                  )}
-                                >
-                                  {trade.result}
-                                </span>
-                                <span className="text-xs font-semibold text-gray-600">{trade.instrument}</span>
-                              </div>
-                              <p
-                                className={cn(
-                                  "text-xs font-bold font-mono",
-                                  trade.profit > 0
-                                    ? "text-emerald-600"
-                                    : trade.profit < 0
-                                    ? "text-red-600"
-                                    : "text-gray-500"
-                                )}
-                              >
-                                {formatCurrency(trade.profit)}
-                              </p>
-                            </div>
-                            <button
-                              onClick={() => {
-                                setSelectedDate(dateStr);
-                                // TODO: Open edit modal for this specific trade
-                              }}
-                              className="text-gray-400 hover:text-blue-500 transition-colors"
-                            >
-                              <Plus size={16} className="rotate-45" />
-                            </button>
-                          </div>
-                        </div>
+                          trade={trade}
+                          onEdit={() => handleEditTrade(trade.id, dateStr)}
+                          onDelete={deleteTrade}
+                        />
                       ))}
                     </div>
 
@@ -485,18 +457,17 @@ export default function CalendarPage() {
       </div>
 
       {/* Trade Modal */}
-      {selectedDate && (
-        <TradeModal
-          open={modalOpen}
-          onClose={() => setModalOpen(false)}
-          date={selectedDate}
-          accountId={selectedAccountId}
-          onSave={handleSaveTrade}
-          onDelete={() => {
-            // TODO: Handle delete for specific trade
-          }}
-        />
-      )}
+      <TradeModal
+        open={modalOpen}
+        onClose={() => {
+          setModalOpen(false);
+          setSelectedTradeId(null);
+        }}
+        date={selectedDate || ""}
+        accountId={selectedAccountId}
+        existingTradeId={selectedTradeId || undefined}
+        onSave={handleSaveTrade}
+      />
     </div>
   );
 }

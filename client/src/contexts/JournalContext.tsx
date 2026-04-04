@@ -46,6 +46,7 @@ interface JournalContextType {
   
   // Trade management
   setTrade: (date: string, accountId: string, trade: Omit<TradeEntry, "id" | "date" | "accountId">) => void;
+  updateTrade: (tradeId: string, updates: Partial<Omit<TradeEntry, "id" | "date" | "accountId" | "createdAt">>) => void;
   deleteTrade: (tradeId: string) => void;
   getTrade: (tradeId: string) => TradeEntry | undefined;
   
@@ -200,6 +201,26 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
           },
         },
       }));
+    },
+    []
+  );
+
+  const updateTrade = useCallback(
+    (tradeId: string, updates: Partial<Omit<TradeEntry, "id" | "date" | "accountId" | "createdAt">>) => {
+      setData((prev) => {
+        const trade = prev.trades[tradeId];
+        if (!trade) return prev;
+        return {
+          ...prev,
+          trades: {
+            ...prev.trades,
+            [tradeId]: {
+              ...trade,
+              ...updates,
+            },
+          },
+        };
+      });
     },
     []
   );
@@ -440,6 +461,7 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
         getAccount,
         getAllAccounts,
         setTrade,
+        updateTrade,
         deleteTrade,
         getTrade,
         getTradesByDate,

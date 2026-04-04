@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useJournal, TradeResult } from "@/contexts/JournalContext";
+import { toast } from "sonner";
 
 interface TradeModalProps {
   open: boolean;
@@ -68,7 +69,7 @@ export default function TradeModal({
   onSave,
   onDelete,
 }: TradeModalProps) {
-  const { getTrade, getAccount } = useJournal();
+  const { getTrade, getAccount, updateTrade, deleteTrade } = useJournal();
   const existingTrade = existingTradeId ? getTrade(existingTradeId) : undefined;
   const account = getAccount(accountId);
 
@@ -103,13 +104,33 @@ export default function TradeModal({
       return;
     }
 
-    onSave({
+    const tradeData = {
       result,
       profit: parseFloat(profitStr),
       instrument,
       notes,
       imageUrl,
-    });
+    };
+
+    if (existingTradeId) {
+      updateTrade(existingTradeId, tradeData);
+      toast.success("Trade actualizado correctamente");
+    } else {
+      if (onSave) {
+        onSave(tradeData);
+      }
+    }
+
+    onClose();
+  };
+
+  const handleDelete = () => {
+    if (!existingTradeId) return;
+    if (confirm("¿Eliminar este trade? Los balances se recalcularán automáticamente.")) {
+      deleteTrade(existingTradeId);
+      toast.success("Trade eliminado correctamente");
+      onClose();
+    }
   };
 
   return (
@@ -256,9 +277,9 @@ export default function TradeModal({
 
         {/* Botones */}
         <div className="flex gap-3 pt-4 border-t border-gray-200">
-          {existingTradeId && onDelete && (
+          {existingTradeId && (
             <Button
-              onClick={onDelete}
+              onClick={handleDelete}
               variant="destructive"
               className="flex-1"
             >
