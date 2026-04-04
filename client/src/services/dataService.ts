@@ -1,19 +1,11 @@
-/*
- * Data Service — Trading Journal Pro
- * Abstracción de datos completamente separada del UI
- * Diseñada para ser reemplazada fácilmente por Supabase en el futuro
- * 
- * Estructura:
- * - Todas las operaciones son async
- * - Mock temporal usa localStorage
- * - Fácil de reemplazar por llamadas a Supabase sin tocar el UI
- */
+import { supabase } from '@/lib/supabase';
+import { nanoid } from 'nanoid';
 
 export interface Trade {
   id: string;
   account_id: string;
-  date: string; // "YYYY-MM-DD"
-  result: "TP" | "SL" | "BE" | null;
+  date: string;
+  result: 'TP' | 'SL' | 'BE' | null;
   profit: number;
   instrument: string;
   notes: string;
@@ -34,257 +26,342 @@ export interface Account {
 // TRADES API
 // ============================================================================
 
-/**
- * Obtener todos los trades
- * Futuro: SELECT * FROM trades
- */
 export async function getTrades(): Promise<Trade[]> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const data = localStorage.getItem("trading-journal-trades");
-      const trades = data ? JSON.parse(data) : [];
-      resolve(trades);
-    }, 50); // Simular latencia de red
-  });
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase
+    .from('trades')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('date', { ascending: false });
+
+  if (error) throw error;
+
+  return (data || []).map((trade: any) => ({
+    id: trade.id,
+    account_id: trade.account_id,
+    date: trade.date,
+    result: trade.result,
+    profit: trade.profit,
+    instrument: trade.instrument,
+    notes: trade.notes,
+    imageUrl: trade.image_url,
+    created_at: trade.created_at,
+  }));
 }
 
-/**
- * Obtener trades de una cuenta específica
- * Futuro: SELECT * FROM trades WHERE account_id = ?
- */
 export async function getTradesByAccount(accountId: string): Promise<Trade[]> {
-  const trades = await getTrades();
-  return trades.filter((t) => t.account_id === accountId);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase
+    .from('trades')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('account_id', accountId)
+    .order('date', { ascending: false });
+
+  if (error) throw error;
+
+  return (data || []).map((trade: any) => ({
+    id: trade.id,
+    account_id: trade.account_id,
+    date: trade.date,
+    result: trade.result,
+    profit: trade.profit,
+    instrument: trade.instrument,
+    notes: trade.notes,
+    imageUrl: trade.image_url,
+    created_at: trade.created_at,
+  }));
 }
 
-/**
- * Obtener trades de una fecha específica
- * Futuro: SELECT * FROM trades WHERE date = ?
- */
 export async function getTradesByDate(date: string): Promise<Trade[]> {
-  const trades = await getTrades();
-  return trades.filter((t) => t.date === date);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase
+    .from('trades')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('date', date)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+
+  return (data || []).map((trade: any) => ({
+    id: trade.id,
+    account_id: trade.account_id,
+    date: trade.date,
+    result: trade.result,
+    profit: trade.profit,
+    instrument: trade.instrument,
+    notes: trade.notes,
+    imageUrl: trade.image_url,
+    created_at: trade.created_at,
+  }));
 }
 
-/**
- * Obtener un trade por ID
- * Futuro: SELECT * FROM trades WHERE id = ?
- */
 export async function getTradeById(id: string): Promise<Trade | null> {
-  const trades = await getTrades();
-  return trades.find((t) => t.id === id) || null;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase
+    .from('trades')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  if (!data) return null;
+
+  return {
+    id: data.id,
+    account_id: data.account_id,
+    date: data.date,
+    result: data.result,
+    profit: data.profit,
+    instrument: data.instrument,
+    notes: data.notes,
+    imageUrl: data.image_url,
+    created_at: data.created_at,
+  };
 }
 
-/**
- * Crear un nuevo trade
- * Futuro: INSERT INTO trades (account_id, date, result, profit, instrument, notes, created_at) VALUES (...)
- */
-export async function createTrade(trade: Omit<Trade, "id" | "created_at">): Promise<Trade> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const id = `trade-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const newTrade: Trade = {
-        ...trade,
+export async function createTrade(trade: Omit<Trade, 'id' | 'created_at'>): Promise<Trade> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const id = `trade-${nanoid()}`;
+  const { data, error } = await supabase
+    .from('trades')
+    .insert([
+      {
         id,
-        created_at: new Date().toISOString(),
-      };
+        user_id: user.id,
+        account_id: trade.account_id,
+        date: trade.date,
+        result: trade.result,
+        profit: trade.profit,
+        instrument: trade.instrument,
+        notes: trade.notes,
+        image_url: trade.imageUrl,
+      },
+    ])
+    .select()
+    .single();
 
-      const trades = JSON.parse(localStorage.getItem("trading-journal-trades") || "[]");
-      trades.push(newTrade);
-      localStorage.setItem("trading-journal-trades", JSON.stringify(trades));
+  if (error) throw error;
 
-      resolve(newTrade);
-    }, 50);
-  });
+  return {
+    id: data.id,
+    account_id: data.account_id,
+    date: data.date,
+    result: data.result,
+    profit: data.profit,
+    instrument: data.instrument,
+    notes: data.notes,
+    imageUrl: data.image_url,
+    created_at: data.created_at,
+  };
 }
 
-/**
- * Actualizar un trade existente
- * Futuro: UPDATE trades SET ... WHERE id = ?
- */
-export async function updateTrade(id: string, updates: Partial<Trade>): Promise<Trade | null> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const trades = JSON.parse(localStorage.getItem("trading-journal-trades") || "[]");
-      const index = trades.findIndex((t: Trade) => t.id === id);
+export async function updateTrade(id: string, updates: Partial<Omit<Trade, 'id' | 'created_at'>>): Promise<Trade | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
 
-      if (index === -1) {
-        resolve(null);
-        return;
-      }
+  const updateData: any = {};
+  if (updates.result !== undefined) updateData.result = updates.result;
+  if (updates.profit !== undefined) updateData.profit = updates.profit;
+  if (updates.instrument !== undefined) updateData.instrument = updates.instrument;
+  if (updates.notes !== undefined) updateData.notes = updates.notes;
+  if (updates.imageUrl !== undefined) updateData.image_url = updates.imageUrl;
 
-      const updatedTrade = {
-        ...trades[index],
-        ...updates,
-        id, // preserve id
-        created_at: trades[index].created_at, // preserve created_at
-      };
+  const { data, error } = await supabase
+    .from('trades')
+    .update(updateData)
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .select()
+    .single();
 
-      trades[index] = updatedTrade;
-      localStorage.setItem("trading-journal-trades", JSON.stringify(trades));
+  if (error && error.code !== 'PGRST116') throw error;
+  if (!data) return null;
 
-      resolve(updatedTrade);
-    }, 50);
-  });
+  return {
+    id: data.id,
+    account_id: data.account_id,
+    date: data.date,
+    result: data.result,
+    profit: data.profit,
+    instrument: data.instrument,
+    notes: data.notes,
+    imageUrl: data.image_url,
+    created_at: data.created_at,
+  };
 }
 
-/**
- * Eliminar un trade
- * Futuro: DELETE FROM trades WHERE id = ?
- */
 export async function deleteTrade(id: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const trades = JSON.parse(localStorage.getItem("trading-journal-trades") || "[]");
-      const filtered = trades.filter((t: Trade) => t.id !== id);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
 
-      if (filtered.length === trades.length) {
-        resolve(false); // No se encontró
-        return;
-      }
+  const { error } = await supabase
+    .from('trades')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id);
 
-      localStorage.setItem("trading-journal-trades", JSON.stringify(filtered));
-      resolve(true);
-    }, 50);
-  });
+  if (error) throw error;
+  return true;
 }
 
 // ============================================================================
 // ACCOUNTS API
 // ============================================================================
 
-/**
- * Obtener todas las cuentas
- * Futuro: SELECT * FROM accounts
- */
 export async function getAccounts(): Promise<Account[]> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const data = localStorage.getItem("trading-journal-accounts");
-      const accounts = data ? JSON.parse(data) : [];
-      resolve(accounts);
-    }, 50);
-  });
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase
+    .from('accounts')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+
+  return (data || []).map((acc: any) => ({
+    id: acc.id,
+    name: acc.name,
+    initial_balance: acc.initial_balance,
+    color: acc.color,
+    created_at: acc.created_at,
+    active: acc.active,
+  }));
 }
 
-/**
- * Obtener una cuenta por ID
- * Futuro: SELECT * FROM accounts WHERE id = ?
- */
 export async function getAccountById(id: string): Promise<Account | null> {
-  const accounts = await getAccounts();
-  return accounts.find((a) => a.id === id) || null;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase
+    .from('accounts')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  if (!data) return null;
+
+  return {
+    id: data.id,
+    name: data.name,
+    initial_balance: data.initial_balance,
+    color: data.color,
+    created_at: data.created_at,
+    active: data.active,
+  };
 }
 
-/**
- * Crear una nueva cuenta
- * Futuro: INSERT INTO accounts (name, initial_balance, color, created_at, active) VALUES (...)
- */
-export async function createAccount(account: Omit<Account, "id" | "created_at">): Promise<Account> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const id = `account-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const newAccount: Account = {
-        ...account,
+export async function createAccount(account: Omit<Account, 'id' | 'created_at'>): Promise<Account> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const id = `account-${nanoid()}`;
+  const { data, error } = await supabase
+    .from('accounts')
+    .insert([
+      {
         id,
-        created_at: new Date().toISOString(),
-      };
+        user_id: user.id,
+        name: account.name,
+        initial_balance: account.initial_balance,
+        color: account.color,
+        active: account.active,
+      },
+    ])
+    .select()
+    .single();
 
-      const accounts = JSON.parse(localStorage.getItem("trading-journal-accounts") || "[]");
-      accounts.push(newAccount);
-      localStorage.setItem("trading-journal-accounts", JSON.stringify(accounts));
+  if (error) throw error;
 
-      resolve(newAccount);
-    }, 50);
-  });
+  return {
+    id: data.id,
+    name: data.name,
+    initial_balance: data.initial_balance,
+    color: data.color,
+    created_at: data.created_at,
+    active: data.active,
+  };
 }
 
-/**
- * Actualizar una cuenta
- * Futuro: UPDATE accounts SET ... WHERE id = ?
- */
-export async function updateAccount(id: string, updates: Partial<Account>): Promise<Account | null> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const accounts = JSON.parse(localStorage.getItem("trading-journal-accounts") || "[]");
-      const index = accounts.findIndex((a: Account) => a.id === id);
+export async function updateAccount(id: string, updates: Partial<Omit<Account, 'id' | 'created_at'>>): Promise<Account | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
 
-      if (index === -1) {
-        resolve(null);
-        return;
-      }
+  const updateData: any = {};
+  if (updates.name !== undefined) updateData.name = updates.name;
+  if (updates.initial_balance !== undefined) updateData.initial_balance = updates.initial_balance;
+  if (updates.color !== undefined) updateData.color = updates.color;
+  if (updates.active !== undefined) updateData.active = updates.active;
 
-      const updatedAccount = {
-        ...accounts[index],
-        ...updates,
-        id, // preserve id
-        created_at: accounts[index].created_at, // preserve created_at
-      };
+  const { data, error } = await supabase
+    .from('accounts')
+    .update(updateData)
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .select()
+    .single();
 
-      accounts[index] = updatedAccount;
-      localStorage.setItem("trading-journal-accounts", JSON.stringify(accounts));
+  if (error && error.code !== 'PGRST116') throw error;
+  if (!data) return null;
 
-      resolve(updatedAccount);
-    }, 50);
-  });
+  return {
+    id: data.id,
+    name: data.name,
+    initial_balance: data.initial_balance,
+    color: data.color,
+    created_at: data.created_at,
+    active: data.active,
+  };
 }
 
-/**
- * Eliminar una cuenta
- * Futuro: DELETE FROM accounts WHERE id = ?
- */
 export async function deleteAccount(id: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const accounts = JSON.parse(localStorage.getItem("trading-journal-accounts") || "[]");
-      const filtered = accounts.filter((a: Account) => a.id !== id);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
 
-      if (filtered.length === accounts.length) {
-        resolve(false); // No se encontró
-        return;
-      }
+  const { error } = await supabase
+    .from('accounts')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id);
 
-      localStorage.setItem("trading-journal-accounts", JSON.stringify(filtered));
-
-      // También eliminar todos los trades asociados
-      const trades = JSON.parse(localStorage.getItem("trading-journal-trades") || "[]");
-      const filteredTrades = trades.filter((t: Trade) => t.account_id !== id);
-      localStorage.setItem("trading-journal-trades", JSON.stringify(filteredTrades));
-
-      resolve(true);
-    }, 50);
-  });
+  if (error) throw error;
+  return true;
 }
 
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
 
-/**
- * Inicializar datos por defecto si no existen
- */
 export async function initializeDefaultData(): Promise<void> {
   const accounts = await getAccounts();
-  const trades = await getTrades();
 
   if (accounts.length === 0) {
     await createAccount({
-      name: "Cuenta Principal",
+      name: 'Cuenta Principal',
       initial_balance: 1000,
-      color: "#10b981",
+      color: '#10b981',
       active: true,
     });
   }
-
-  if (trades.length === 0) {
-    // Sin trades por defecto
-  }
 }
 
-/**
- * Limpiar todos los datos (para desarrollo/testing)
- */
 export async function clearAllData(): Promise<void> {
-  localStorage.removeItem("trading-journal-trades");
-  localStorage.removeItem("trading-journal-accounts");
+  // No-op: datos en Supabase no se pueden limpiar fácilmente
+  // Esta función se mantiene por compatibilidad
 }
