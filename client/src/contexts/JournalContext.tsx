@@ -1,53 +1,60 @@
-/**
+/*
  * JournalContext — Trading Journal Pro (Multi-Account)
  * Design: Swiss International Style meets Financial Dashboard
  * Manages multiple trading accounts with dynamic balance calculation
+ * 
+ * IMPORTANTE: Este contexto ahora usa el servicio de datos (dataService.ts)
+ * para abstraer completamente la lógica de datos del UI.
+ * Esto permite reemplazar fácilmente el backend sin tocar el UI.
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
+import * as dataService from "@/services/dataService";
 
 export type TradeResult = "TP" | "SL" | "BE" | null;
 
+// Tipos de UI (camelCase para compatibilidad con el código existente)
 export interface TradingAccount {
   id: string;
   name: string;
   initialBalance: number;
-  createdAt: string; // "YYYY-MM-DD"
-  color: string; // hex color for UI
+  createdAt: string;
+  color: string;
   active: boolean;
 }
 
 export interface TradeEntry {
   id: string;
-  date: string; // "YYYY-MM-DD"
-  accountId: string; // which account this trade belongs to
+  date: string;
+  accountId: string;
   result: TradeResult;
-  profit: number; // positive = gain, negative = loss
-  instrument: string; // e.g., "EUR/USD", "NASDAQ", "BTC/USD"
+  profit: number;
+  instrument: string;
   notes: string;
-  imageUrl: string; // base64 or URL of trade screenshot
-  createdAt: string; // timestamp for ordering multiple trades per day
+  imageUrl: string;
+  createdAt: string;
 }
 
 export interface JournalData {
-  accounts: Record<string, TradingAccount>; // keyed by account id
-  trades: Record<string, TradeEntry>; // keyed by trade id
+  accounts: Record<string, TradingAccount>;
+  trades: Record<string, TradeEntry>;
 }
 
 interface JournalContextType {
   data: JournalData;
+  loading: boolean;
   
   // Account management
-  createAccount: (name: string, initialBalance: number, color: string) => string;
-  updateAccount: (accountId: string, updates: Partial<TradingAccount>) => void;
-  deleteAccount: (accountId: string) => void;
+  createAccount: (name: string, initialBalance: number, color: string) => Promise<string>;
+  updateAccount: (accountId: string, updates: Partial<TradingAccount>) => Promise<void>;
+  deleteAccount: (accountId: string) => Promise<void>;
   getAccount: (accountId: string) => TradingAccount | undefined;
   getAllAccounts: () => TradingAccount[];
   
   // Trade management
-  setTrade: (date: string, accountId: string, trade: Omit<TradeEntry, "id" | "date" | "accountId">) => void;
-  updateTrade: (tradeId: string, updates: Partial<Omit<TradeEntry, "id" | "date" | "accountId" | "createdAt">>) => void;
-  deleteTrade: (tradeId: string) => void;
+  setTrade: (date: string, accountId: string, trade: Omit<TradeEntry, "id" | "date" | "accountId">) => Promise<void>;
+  updateTrade: (tradeId: string, updates: Partial<Omit<TradeEntry, "id" | "date" | "accountId" | "createdAt">>) => Promise<void>;
+  deleteTrade: (tradeId: string) => Promise<void>;
   getTrade: (tradeId: string) => TradeEntry | undefined;
   
   // Queries
@@ -93,84 +100,156 @@ export interface MonthMetrics extends AccountMetrics {
   month: number;
 }
 
-const STORAGE_KEY = "trading-journal-data-v2";
 export const ACCOUNT_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
-
-const defaultData: JournalData = {
-  accounts: {
-    "default-account": {
-      id: "default-account",
-      name: "Cuenta Principal",
-      initialBalance: 1000,
-      createdAt: new Date().toISOString().split("T")[0],
-      color: ACCOUNT_COLORS[0],
-      active: true,
-    },
-  },
-  trades: {},
-};
 
 const JournalContext = createContext<JournalContextType | null>(null);
 
-export function JournalProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useState<JournalData>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) return JSON.parse(stored);
-    } catch {}
-    return defaultData;
-  });
+// Helper: Convertir formato dataService a formato UI
+function convertAccount(acc: dataService.Account): TradingAccount {
+  return {
+    id: acc.id,
+    name: acc.name,
+    initialBalance: acc.initial_balance,
+    createdAt: acc.created_at,
+    color: acc.color,
+    active: acc.active,
+  };
+}
 
+function convertTrade(trade: dataService.Trade): TradeEntry {
+  return {
+    id: trade.id,
+    date: trade.date,
+    accountId: trade.account_id,
+    result: trade.result,
+    profit: trade.profit,
+    instrument: trade.instrument,
+    notes: trade.notes,
+    imageUrl: trade.imageUrl || "",
+    createdAt: trade.created_at,
+  };
+}
+
+// Helper: Convertir formato UI a formato dataService
+function unconvertAccount(acc: TradingAccount): dataService.Account {
+  return {
+    id: acc.id,
+    name: acc.name,
+    initial_balance: acc.initialBalance,
+    created_at: acc.createdAt,
+    color: acc.color,
+    active: acc.active,
+  };
+}
+
+function unconvertTrade(trade: TradeEntry): dataService.Trade {
+  return {
+    id: trade.id,
+    date: trade.date,
+    account_id: trade.accountId,
+    result: trade.result,
+    profit: trade.profit,
+    instrument: trade.instrument,
+    notes: trade.notes,
+    imageUrl: trade.imageUrl,
+    created_at: trade.createdAt,
+  };
+}
+
+export function JournalProvider({ children }: { children: React.ReactNode }) {
+  const [data, setData] = useState<JournalData>({ accounts: {}, trades: {} });
+  const [loading, setLoading] = useState(true);
+
+  // Cargar datos al montar el componente
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }, [data]);
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        
+        // Inicializar datos por defecto si es necesario
+        await dataService.initializeDefaultData();
+        
+        // Cargar cuentas y trades
+        const [accounts, trades] = await Promise.all([
+          dataService.getAccounts(),
+          dataService.getTrades(),
+        ]);
+
+        // Convertir a formato UI
+        const accountsMap: Record<string, TradingAccount> = {};
+        for (const acc of accounts) {
+          accountsMap[acc.id] = convertAccount(acc);
+        }
+
+        const tradesMap: Record<string, TradeEntry> = {};
+        for (const trade of trades) {
+          tradesMap[trade.id] = convertTrade(trade);
+        }
+
+        setData({ accounts: accountsMap, trades: tradesMap });
+      } catch (error) {
+        console.error("Error loading data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   // Account management
-  const createAccount = useCallback((name: string, initialBalance: number, color: string) => {
-    const id = `account-${Date.now()}`;
-    setData((prev) => ({
-      ...prev,
-      accounts: {
-        ...prev.accounts,
-        [id]: {
-          id,
-          name,
-          initialBalance,
-          createdAt: new Date().toISOString().split("T")[0],
-          color,
-          active: true,
-        },
-      },
-    }));
-    return id;
-  }, []);
-
-  const updateAccount = useCallback((accountId: string, updates: Partial<TradingAccount>) => {
-    setData((prev) => ({
-      ...prev,
-      accounts: {
-        ...prev.accounts,
-        [accountId]: {
-          ...prev.accounts[accountId],
-          ...updates,
-          id: accountId, // preserve id
-        },
-      },
-    }));
-  }, []);
-
-  const deleteAccount = useCallback((accountId: string) => {
-    setData((prev) => {
-      const newAccounts = { ...prev.accounts };
-      delete newAccounts[accountId];
-      
-      // Also delete all trades for this account
-      const newTrades = Object.fromEntries(
-        Object.entries(prev.trades).filter(([_, trade]) => trade.accountId !== accountId)
-      );
-      
-      return { ...prev, accounts: newAccounts, trades: newTrades };
+  const createAccount = useCallback(async (name: string, initialBalance: number, color: string) => {
+    const newAccount = await dataService.createAccount({
+      name,
+      initial_balance: initialBalance,
+      color,
+      active: true,
     });
+
+    setData((prev) => ({
+      ...prev,
+      accounts: {
+        ...prev.accounts,
+        [newAccount.id]: convertAccount(newAccount),
+      },
+    }));
+
+    return newAccount.id;
+  }, []);
+
+  const updateAccount = useCallback(async (accountId: string, updates: Partial<TradingAccount>) => {
+    const updateData: Partial<dataService.Account> = {};
+    if (updates.name) updateData.name = updates.name;
+    if (updates.initialBalance) updateData.initial_balance = updates.initialBalance;
+    if (updates.color) updateData.color = updates.color;
+    if (updates.active !== undefined) updateData.active = updates.active;
+
+    const updated = await dataService.updateAccount(accountId, updateData);
+    if (updated) {
+      setData((prev) => ({
+        ...prev,
+        accounts: {
+          ...prev.accounts,
+          [accountId]: convertAccount(updated),
+        },
+      }));
+    }
+  }, []);
+
+  const deleteAccount = useCallback(async (accountId: string) => {
+    const deleted = await dataService.deleteAccount(accountId);
+    if (deleted) {
+      setData((prev) => {
+        const newAccounts = { ...prev.accounts };
+        delete newAccounts[accountId];
+
+        const newTrades = Object.fromEntries(
+          Object.entries(prev.trades).filter(([_, trade]) => trade.accountId !== accountId)
+        );
+
+        return { ...prev, accounts: newAccounts, trades: newTrades };
+      });
+    }
   }, []);
 
   const getAccount = useCallback(
@@ -185,20 +264,22 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
 
   // Trade management
   const setTrade = useCallback(
-    (date: string, accountId: string, trade: Omit<TradeEntry, "id" | "date" | "accountId" | "createdAt">) => {
-      const id = `trade-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const createdAt = new Date().toISOString();
+    async (date: string, accountId: string, trade: Omit<TradeEntry, "id" | "date" | "accountId">) => {
+      const newTrade = await dataService.createTrade({
+        date,
+        account_id: accountId,
+        result: trade.result,
+        profit: trade.profit,
+        instrument: trade.instrument,
+        notes: trade.notes,
+        imageUrl: trade.imageUrl,
+      });
+
       setData((prev) => ({
         ...prev,
         trades: {
           ...prev.trades,
-          [id]: {
-            ...trade,
-            id,
-            date,
-            accountId,
-            createdAt,
-          },
+          [newTrade.id]: convertTrade(newTrade),
         },
       }));
     },
@@ -206,31 +287,37 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
   );
 
   const updateTrade = useCallback(
-    (tradeId: string, updates: Partial<Omit<TradeEntry, "id" | "date" | "accountId" | "createdAt">>) => {
-      setData((prev) => {
-        const trade = prev.trades[tradeId];
-        if (!trade) return prev;
-        return {
+    async (tradeId: string, updates: Partial<Omit<TradeEntry, "id" | "date" | "accountId" | "createdAt">>) => {
+      const updateData: Partial<dataService.Trade> = {};
+      if (updates.result !== undefined) updateData.result = updates.result;
+      if (updates.profit !== undefined) updateData.profit = updates.profit;
+      if (updates.instrument) updateData.instrument = updates.instrument;
+      if (updates.notes) updateData.notes = updates.notes;
+      if (updates.imageUrl) updateData.imageUrl = updates.imageUrl;
+
+      const updated = await dataService.updateTrade(tradeId, updateData);
+      if (updated) {
+        setData((prev) => ({
           ...prev,
           trades: {
             ...prev.trades,
-            [tradeId]: {
-              ...trade,
-              ...updates,
-            },
+            [tradeId]: convertTrade(updated),
           },
-        };
-      });
+        }));
+      }
     },
     []
   );
 
-  const deleteTrade = useCallback((tradeId: string) => {
-    setData((prev) => {
-      const newTrades = { ...prev.trades };
-      delete newTrades[tradeId];
-      return { ...prev, trades: newTrades };
-    });
+  const deleteTrade = useCallback(async (tradeId: string) => {
+    const deleted = await dataService.deleteTrade(tradeId);
+    if (deleted) {
+      setData((prev) => {
+        const newTrades = { ...prev.trades };
+        delete newTrades[tradeId];
+        return { ...prev, trades: newTrades };
+      });
+    }
   }, []);
 
   const getTrade = useCallback(
@@ -240,10 +327,11 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
 
   // Queries
   const getTradesByDate = useCallback(
-    (date: string) => 
-      Object.values(data.trades)
+    (date: string) => {
+      return Object.values(data.trades)
         .filter((t) => t.date === date)
-        .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    },
     [data.trades]
   );
 
@@ -265,12 +353,12 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
     [data.trades]
   );
 
-  // Calculate current balance for an account
+  // Metrics
   const getAccountBalance = useCallback(
     (accountId: string): number => {
       const account = data.accounts[accountId];
       if (!account) return 0;
-      
+
       const trades = getTradesByAccount(accountId);
       const totalProfit = trades.reduce((sum, t) => sum + t.profit, 0);
       return account.initialBalance + totalProfit;
@@ -278,64 +366,50 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
     [data.accounts, getTradesByAccount]
   );
 
-  // Account metrics for a specific period
   const getAccountMetrics = useCallback(
     (accountId: string, year?: number, month?: number): AccountMetrics => {
       const account = data.accounts[accountId];
-      if (!account) return {
-        accountId,
-        accountName: "Unknown",
-        currentBalance: 0,
-        initialBalance: 0,
-        totalProfit: 0,
-        returnPct: 0,
-        tradeCount: 0,
-        tpCount: 0,
-        slCount: 0,
-        beCount: 0,
-        winrate: 0,
-      };
+      if (!account) {
+        return {
+          accountId,
+          accountName: "Unknown",
+          currentBalance: 0,
+          initialBalance: 0,
+          totalProfit: 0,
+          returnPct: 0,
+          tradeCount: 0,
+          tpCount: 0,
+          slCount: 0,
+          beCount: 0,
+          winrate: 0,
+        };
+      }
 
-      let trades: TradeEntry[];
-      if (year !== undefined && month !== undefined) {
+      let trades = getTradesByAccount(accountId);
+
+      if (year && month) {
         trades = getMonthTrades(accountId, year, month);
-      } else {
-        trades = getTradesByAccount(accountId);
+      } else if (year) {
+        const yearPrefix = `${year}-`;
+        trades = trades.filter((t) => t.date.startsWith(yearPrefix));
       }
 
       const tpCount = trades.filter((t) => t.result === "TP").length;
       const slCount = trades.filter((t) => t.result === "SL").length;
       const beCount = trades.filter((t) => t.result === "BE").length;
-      const tradeCount = trades.length;
       const totalProfit = trades.reduce((sum, t) => sum + t.profit, 0);
-      const winrate = tradeCount > 0 ? (tpCount / tradeCount) * 100 : 0;
-
-      // For period metrics, calculate initial balance at start of period
-      let periodInitialBalance = account.initialBalance;
-      if (year !== undefined && month !== undefined && trades.length > 0) {
-        const firstTradeOfPeriod = trades[0];
-        const priorTrades = getTradesByAccount(accountId).filter(
-          (t) => t.date < firstTradeOfPeriod.date
-        );
-        if (priorTrades.length > 0) {
-          periodInitialBalance = account.initialBalance + priorTrades.reduce((s, t) => s + t.profit, 0);
-        }
-      }
-
-      const currentBalance = periodInitialBalance + totalProfit;
-      const returnPct =
-        periodInitialBalance > 0
-          ? ((currentBalance - periodInitialBalance) / periodInitialBalance) * 100
-          : 0;
+      const currentBalance = account.initialBalance + totalProfit;
+      const returnPct = (totalProfit / account.initialBalance) * 100;
+      const winrate = trades.length > 0 ? (tpCount / trades.length) * 100 : 0;
 
       return {
         accountId,
         accountName: account.name,
         currentBalance,
-        initialBalance: periodInitialBalance,
+        initialBalance: account.initialBalance,
         totalProfit,
         returnPct,
-        tradeCount,
+        tradeCount: trades.length,
         tpCount,
         slCount,
         beCount,
@@ -345,82 +419,76 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
     [data.accounts, getTradesByAccount, getMonthTrades]
   );
 
-  // Year metrics for an account
   const getYearMetrics = useCallback(
     (accountId: string, year: number): YearMetrics => {
-      const months: MonthMetrics[] = [];
+      const baseMetrics = getAccountMetrics(accountId, year);
+      const trades = getTradesByAccount(accountId).filter((t) => t.date.startsWith(`${year}-`));
+
+      // Calculate months
+      const monthsMap: Record<number, TradeEntry[]> = {};
       for (let m = 1; m <= 12; m++) {
-        const metrics = getAccountMetrics(accountId, year, m);
-        months.push({
-          ...metrics,
-          year,
-          month: m,
-        });
+        monthsMap[m] = getMonthTrades(accountId, year, m);
       }
 
-      const allTrades = getTradesByAccount(accountId);
-      const yearTrades = allTrades.filter((t) => t.date.startsWith(String(year)));
-      const totalProfit = yearTrades.reduce((sum, t) => sum + t.profit, 0);
-      const totalTrades = yearTrades.length;
-      const tpCount = yearTrades.filter((t) => t.result === "TP").length;
-      const winrate = totalTrades > 0 ? (tpCount / totalTrades) * 100 : 0;
+      const months: MonthMetrics[] = [];
+      for (let m = 1; m <= 12; m++) {
+        const monthTrades = monthsMap[m];
+        if (monthTrades.length > 0) {
+          const metrics = getAccountMetrics(accountId, year, m);
+          months.push({
+            ...metrics,
+            year,
+            month: m,
+          });
+        }
+      }
 
-      const wins = yearTrades.filter((t) => t.profit > 0).map((t) => t.profit);
-      const losses = yearTrades.filter((t) => t.profit < 0).map((t) => Math.abs(t.profit));
-      const totalWins = wins.reduce((s, v) => s + v, 0);
-      const totalLosses = losses.reduce((s, v) => s + v, 0);
-      const profitFactor = totalLosses > 0 ? totalWins / totalLosses : totalWins > 0 ? 999 : 0;
-      const avgWin = wins.length > 0 ? totalWins / wins.length : 0;
-      const avgLoss = losses.length > 0 ? totalLosses / losses.length : 0;
+      // Best and worst month
+      let bestMonth: MonthMetrics | null = null;
+      let worstMonth: MonthMetrics | null = null;
 
-      // Equity curve
-      const account = data.accounts[accountId];
-      const equityCurve: { date: string; balance: number }[] = [
-        { date: `${year}-01-01`, balance: account?.initialBalance || 0 },
-      ];
-      yearTrades.forEach((t) => {
-        const priorProfit = yearTrades
-          .filter((tr) => tr.date <= t.date)
-          .reduce((s, tr) => s + tr.profit, 0);
-        equityCurve.push({
-          date: t.date,
-          balance: (account?.initialBalance || 0) + priorProfit,
-        });
-      });
+      for (const m of months) {
+        if (!bestMonth || m.totalProfit > bestMonth.totalProfit) bestMonth = m;
+        if (!worstMonth || m.totalProfit < worstMonth.totalProfit) worstMonth = m;
+      }
+
+      // Profit factor
+      const wins = trades.filter((t) => t.profit > 0).reduce((sum, t) => sum + t.profit, 0);
+      const losses = Math.abs(trades.filter((t) => t.profit < 0).reduce((sum, t) => sum + t.profit, 0));
+      const profitFactor = losses > 0 ? wins / losses : wins > 0 ? 999 : 0;
 
       // Max drawdown
       let maxDrawdown = 0;
-      let peak = account?.initialBalance || 0;
-      equityCurve.forEach((p) => {
-        if (p.balance > peak) peak = p.balance;
-        const dd = peak > 0 ? ((peak - p.balance) / peak) * 100 : 0;
-        if (dd > maxDrawdown) maxDrawdown = dd;
-      });
+      let peak = baseMetrics.initialBalance;
+      let runningBalance = baseMetrics.initialBalance;
 
-      const activeMonths = months.filter((m) => m.tradeCount > 0);
-      const bestMonth =
-        activeMonths.length > 0
-          ? activeMonths.reduce((best, m) =>
-              m.totalProfit > best.totalProfit ? m : best
-            )
-          : null;
-      const worstMonth =
-        activeMonths.length > 0
-          ? activeMonths.reduce((worst, m) =>
-              m.totalProfit < worst.totalProfit ? m : worst
-            )
-          : null;
+      for (const trade of trades) {
+        runningBalance += trade.profit;
+        if (runningBalance > peak) peak = runningBalance;
+        const drawdown = ((peak - runningBalance) / peak) * 100;
+        if (drawdown > maxDrawdown) maxDrawdown = drawdown;
+      }
+
+      // Avg win/loss
+      const wins_list = trades.filter((t) => t.profit > 0).map((t) => t.profit);
+      const losses_list = trades.filter((t) => t.profit < 0).map((t) => Math.abs(t.profit));
+      const avgWin = wins_list.length > 0 ? wins_list.reduce((a, b) => a + b, 0) / wins_list.length : 0;
+      const avgLoss = losses_list.length > 0 ? losses_list.reduce((a, b) => a + b, 0) / losses_list.length : 0;
+
+      // Equity curve
+      const equityCurve: { date: string; balance: number }[] = [];
+      let balance = baseMetrics.initialBalance;
+      const sortedTrades = [...trades].sort((a, b) => a.date.localeCompare(b.date));
+
+      for (const trade of sortedTrades) {
+        balance += trade.profit;
+        equityCurve.push({ date: trade.date, balance });
+      }
 
       return {
-        accountId,
-        accountName: account?.name || "Unknown",
-        currentBalance: (account?.initialBalance || 0) + totalProfit,
-        initialBalance: account?.initialBalance || 0,
+        ...baseMetrics,
         year,
         months,
-        totalProfit,
-        tradeCount: totalTrades,
-        winrate,
         profitFactor,
         maxDrawdown,
         avgWin,
@@ -428,24 +496,17 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
         bestMonth,
         worstMonth,
         equityCurve,
-        tpCount: tpCount,
-        slCount: yearTrades.filter((t) => t.result === "SL").length,
-        beCount: yearTrades.filter((t) => t.result === "BE").length,
-        returnPct: (account?.initialBalance || 0) > 0
-          ? (((account?.initialBalance || 0) + totalProfit - (account?.initialBalance || 0)) / (account?.initialBalance || 0)) * 100
-          : 0,
       };
     },
-    [getTradesByAccount, data.accounts, getAccountMetrics]
+    [getAccountMetrics, getTradesByAccount, getMonthTrades]
   );
 
-  // All accounts year metrics
   const getAllAccountsYearMetrics = useCallback(
-    (year: number): Record<string, YearMetrics> => {
+    (year: number) => {
       const result: Record<string, YearMetrics> = {};
-      Object.keys(data.accounts).forEach((accountId) => {
+      for (const accountId of Object.keys(data.accounts)) {
         result[accountId] = getYearMetrics(accountId, year);
-      });
+      }
       return result;
     },
     [data.accounts, getYearMetrics]
@@ -455,6 +516,7 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
     <JournalContext.Provider
       value={{
         data,
+        loading,
         createAccount,
         updateAccount,
         deleteAccount,
@@ -479,7 +541,9 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useJournal() {
-  const ctx = useContext(JournalContext);
-  if (!ctx) throw new Error("useJournal must be used within JournalProvider");
-  return ctx;
+  const context = useContext(JournalContext);
+  if (!context) {
+    throw new Error("useJournal must be used within JournalProvider");
+  }
+  return context;
 }
