@@ -2,8 +2,8 @@
   "buildCommand": "pnpm run build",
   "outputDirectory": "dist",
   "env": {
-    "VITE_SUPABASE_URL": "@vite_supabase_url",
-    "VITE_SUPABASE_ANON_KEY": "@vite_supabase_anon_key"
+    "VITE_SUPABASE_URL": "https://wimxfneaghsjmgailhhr.supabase.co",
+    "VITE_SUPABASE_ANON_KEY": "sb_publishable_yNSl2u2B2X-Z6Js9KBC0MA_rR0baQds"
   },
   "rewrites": [
     {
