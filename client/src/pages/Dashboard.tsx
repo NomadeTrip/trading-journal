@@ -69,9 +69,9 @@ interface KpiCardProps {
 
 function KpiCard({ label, value, sub, icon, iconBg = "bg-gray-100", valueColor = "text-gray-900", badge }: KpiCardProps) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between mb-4">
-        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", iconBg)}>
+        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", iconBg, "dark:bg-gray-700")}>
           {icon}
         </div>
         {badge && (
@@ -81,8 +81,8 @@ function KpiCard({ label, value, sub, icon, iconBg = "bg-gray-100", valueColor =
         )}
       </div>
       <p className={cn("text-2xl font-bold font-mono tracking-tight", valueColor)}>{value}</p>
-      <p className="text-xs font-semibold text-gray-500 mt-1 uppercase tracking-wider">{label}</p>
-      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wider">{label}</p>
+      {sub && <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -90,7 +90,7 @@ function KpiCard({ label, value, sub, icon, iconBg = "bg-gray-100", valueColor =
 const EquityTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-[#111827] text-white px-3 py-2 rounded-lg shadow-xl text-xs">
+      <div className="bg-gray-900 dark:bg-gray-950 text-white px-3 py-2 rounded-lg shadow-xl text-xs">
         <p className="text-gray-400 mb-1">{label}</p>
         {payload.map((entry: any, idx: number) => (
           <p key={idx} style={{ color: entry.color }} className="font-bold font-mono">
@@ -199,14 +199,14 @@ export default function DashboardPage() {
   }, [accounts, selectedYear, getYearMetrics, getAccountBalance]);
 
   return (
-    <div className="min-h-screen bg-[#F8F9FB] p-6">
+    <div className="min-h-screen bg-[#F8F9FB] dark:bg-gray-950 p-6">
       {/* Header */}
       <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
             Dashboard de Rendimiento
           </h1>
-          <p className="text-sm text-gray-400 mt-0.5">
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">
             Análisis anual completo de tu operativa
           </p>
         </div>
@@ -218,7 +218,7 @@ export default function DashboardPage() {
               <select
                 value={selectedInstrument || ""}
                 onChange={(e) => setSelectedInstrument(e.target.value || null)}
-                className="px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors"
+                className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 transition-colors"
               >
                 <option value="">Todos los instrumentos</option>
                 {instruments.map((inst) => (
@@ -235,20 +235,20 @@ export default function DashboardPage() {
           <div className="relative">
             <button
               onClick={() => setYearDropdown((v) => !v)}
-              className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm font-semibold text-gray-700 hover:border-gray-300 transition-colors shadow-sm"
+              className="flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-500 transition-colors shadow-sm"
             >
               {selectedYear}
-              <ChevronDown size={14} className="text-gray-400" />
+              <ChevronDown size={14} className="text-gray-400 dark:text-gray-500" />
             </button>
             {yearDropdown && (
-              <div className="absolute right-0 top-full mt-1 bg-white border border-gray-100 rounded-lg shadow-lg z-10 overflow-hidden">
+              <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg shadow-lg z-10 overflow-hidden">
                 {years.map((y) => (
                   <button
                     key={y}
                     onClick={() => { setSelectedYear(y); setYearDropdown(false); }}
                     className={cn(
-                      "block w-full px-4 py-2 text-sm text-left hover:bg-gray-50 transition-colors",
-                      y === selectedYear ? "font-bold text-emerald-600 bg-emerald-50" : "text-gray-700"
+                      "block w-full px-4 py-2 text-sm text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors",
+                      y === selectedYear ? "font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30" : "text-gray-700 dark:text-gray-300"
                     )}
                   >
                     {y}
@@ -355,11 +355,11 @@ export default function DashboardPage() {
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         {/* Equity Curve */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-sm font-bold text-gray-900">Equity Curve</h3>
-              <p className="text-xs text-gray-400">Crecimiento de la cuenta</p>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Equity Curve</h3>
+              <p className="text-xs text-gray-400 dark:text-gray-500">Crecimiento de la cuenta</p>
             </div>
           </div>
           {equityData.length > 1 ? (
@@ -371,7 +371,7 @@ export default function DashboardPage() {
                     <stop offset="95%" stopColor={selectedAccount?.color || "#10b981"} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
                 <XAxis
                   dataKey="date"
                   tick={{ fontSize: 10, fill: "#9ca3af" }}
@@ -414,50 +414,50 @@ export default function DashboardPage() {
         </div>
 
         {/* Best / Worst month */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-4">
-          <h3 className="text-sm font-bold text-gray-900">Extremos del año</h3>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-5 flex flex-col gap-4">
+          <h3 className="text-sm font-bold text-gray-900 dark:text-white">Extremos del año</h3>
           <div className="flex-1 space-y-3">
-            <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4">
+            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-700 p-4">
               <div className="flex items-center gap-2 mb-2">
-                <Award size={16} className="text-emerald-600" />
-                <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">
+                <Award size={16} className="text-emerald-600 dark:text-emerald-400" />
+                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
                   Mejor mes
                 </span>
               </div>
               {metrics.bestMonth ? (
                 <>
-                  <p className="text-lg font-bold text-emerald-700 font-mono">
+                  <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400 font-mono">
                     {formatCurrency(metrics.bestMonth.totalProfit)}
                   </p>
-                  <p className="text-xs text-emerald-600 mt-0.5">
+                  <p className="text-xs text-emerald-600 dark:text-emerald-500 mt-0.5">
                     {MONTHS_SHORT[metrics.bestMonth.month - 1]} {metrics.bestMonth.year} ·{" "}
                     {metrics.bestMonth.tradeCount} trades
                   </p>
                 </>
               ) : (
-                <p className="text-sm text-gray-400">Sin datos</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">Sin datos</p>
               )}
             </div>
 
-            <div className="rounded-xl bg-red-50 border border-red-100 p-4">
+            <div className="rounded-xl bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-700 p-4">
               <div className="flex items-center gap-2 mb-2">
-                <TrendingDown size={16} className="text-red-500" />
-                <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">
+                <TrendingDown size={16} className="text-red-500 dark:text-red-400" />
+                <span className="text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider">
                   Peor mes
                 </span>
               </div>
               {metrics.worstMonth ? (
                 <>
-                  <p className="text-lg font-bold text-red-600 font-mono">
+                  <p className="text-lg font-bold text-red-600 dark:text-red-400 font-mono">
                     {formatCurrency(metrics.worstMonth.totalProfit)}
                   </p>
-                  <p className="text-xs text-red-500 mt-0.5">
+                  <p className="text-xs text-red-500 dark:text-red-500 mt-0.5">
                     {MONTHS_SHORT[metrics.worstMonth.month - 1]} {metrics.worstMonth.year} ·{" "}
                     {metrics.worstMonth.tradeCount} trades
                   </p>
                 </>
               ) : (
-                <p className="text-sm text-gray-400">Sin datos</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">Sin datos</p>
               )}
             </div>
           </div>
@@ -465,16 +465,16 @@ export default function DashboardPage() {
       </div>
 
       {/* Monthly bar chart */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-5 mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-sm font-bold text-gray-900">Rentabilidad Mensual</h3>
-            <p className="text-xs text-gray-400">Profit/pérdida por mes en USD</p>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white">Rentabilidad Mensual</h3>
+            <p className="text-xs text-gray-400 dark:text-gray-500">Profit/pérdida por mes en USD</p>
           </div>
         </div>
         <ResponsiveContainer width="100%" height={160}>
           <BarChart data={monthlyData} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
             <XAxis
               dataKey="month"
               tick={{ fontSize: 11, fill: "#9ca3af" }}
@@ -511,15 +511,15 @@ export default function DashboardPage() {
 
       {/* Comparison section */}
       {accounts.length > 1 && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-gray-900">Comparación de Cuentas</h3>
-              <p className="text-xs text-gray-400">Rendimiento {selectedYear} de todas tus cuentas</p>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Comparación de Cuentas</h3>
+              <p className="text-xs text-gray-400 dark:text-gray-500">Rendimiento {selectedYear} de todas tus cuentas</p>
             </div>
             <button
               onClick={() => setShowComparison((v) => !v)}
-              className="text-xs font-semibold text-emerald-600 hover:text-emerald-700"
+              className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
             >
               {showComparison ? "Ocultar" : "Ver"}
             </button>
@@ -528,20 +528,20 @@ export default function DashboardPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50/50">
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/30">
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                       Cuenta
                     </th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                       Trades
                     </th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                       Profit
                     </th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                       Winrate
                     </th>
-                    <th className="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    <th className="text-right px-5 py-3 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                       Balance
                     </th>
                   </tr>
@@ -551,7 +551,7 @@ export default function DashboardPage() {
                     <tr
                       key={acc.id}
                       className={cn(
-                        "border-b border-gray-50 hover:bg-gray-50/50 transition-colors",
+                        "border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors",
                         acc.trades === 0 && "opacity-40"
                       )}
                     >
@@ -561,28 +561,28 @@ export default function DashboardPage() {
                             className="w-2.5 h-2.5 rounded-full"
                             style={{ backgroundColor: acc.color }}
                           />
-                          <span className="font-semibold text-gray-700">{acc.name}</span>
+                          <span className="font-semibold text-gray-700 dark:text-gray-300">{acc.name}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-gray-600">
+                      <td className="px-4 py-3 text-right font-mono text-gray-600 dark:text-gray-400">
                         {acc.trades > 0 ? acc.trades : "—"}
                       </td>
                       <td
                         className={cn(
                           "px-4 py-3 text-right font-mono font-semibold",
                           acc.profit > 0
-                            ? "text-emerald-600"
+                            ? "text-emerald-600 dark:text-emerald-400"
                             : acc.profit < 0
-                            ? "text-red-500"
-                            : "text-gray-400"
+                            ? "text-red-500 dark:text-red-400"
+                            : "text-gray-400 dark:text-gray-500"
                         )}
                       >
                         {acc.trades > 0 ? formatCurrency(acc.profit) : "—"}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-gray-600">
+                      <td className="px-4 py-3 text-right font-mono text-gray-600 dark:text-gray-400">
                         {acc.trades > 0 ? `${acc.winrate.toFixed(0)}%` : "—"}
                       </td>
-                      <td className="px-5 py-3 text-right font-mono text-gray-700 font-semibold">
+                      <td className="px-5 py-3 text-right font-mono text-gray-700 dark:text-gray-300 font-semibold">
                         {formatCurrency(acc.balance, false)}
                       </td>
                     </tr>

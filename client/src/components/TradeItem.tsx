@@ -16,17 +16,17 @@ interface TradeItemProps {
 
 export default function TradeItem({ trade, onEdit, onDelete }: TradeItemProps) {
   const resultColor = {
-    TP: "bg-green-50 border-green-200 text-green-700",
-    SL: "bg-red-50 border-red-200 text-red-700",
-    BE: "bg-gray-50 border-gray-200 text-gray-700",
-    null: "bg-gray-50 border-gray-200 text-gray-700",
+    TP: "bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-700 dark:text-green-400",
+    SL: "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 text-red-700 dark:text-red-400",
+    BE: "bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300",
+    null: "bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300",
   }[trade.result || "null"];
 
   const resultBg = {
-    TP: "bg-green-100",
-    SL: "bg-red-100",
-    BE: "bg-gray-100",
-    null: "bg-gray-100",
+    TP: "bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400",
+    SL: "bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-400",
+    BE: "bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300",
+    null: "bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300",
   }[trade.result || "null"];
 
   const resultText = {
@@ -52,13 +52,13 @@ export default function TradeItem({ trade, onEdit, onDelete }: TradeItemProps) {
         {/* Trade details */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-sm font-semibold">{trade.instrument}</span>
-            <span className={cn("text-sm font-mono font-bold", trade.profit >= 0 ? "text-green-600" : "text-red-600")}>
+            <span className="text-sm font-semibold text-gray-900 dark:text-white">{trade.instrument}</span>
+            <span className={cn("text-sm font-mono font-bold", trade.profit >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")}>
               {trade.profit >= 0 ? "+" : ""}${trade.profit.toFixed(2)}
             </span>
           </div>
           {trade.notes && (
-            <p className="text-xs opacity-70 truncate">{trade.notes}</p>
+            <p className="text-xs opacity-70 dark:opacity-60 truncate text-gray-600 dark:text-gray-400">{trade.notes}</p>
           )}
         </div>
       </div>
@@ -82,7 +82,7 @@ export default function TradeItem({ trade, onEdit, onDelete }: TradeItemProps) {
           }}
           size="sm"
           variant="ghost"
-          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+          className="h-8 w-8 p-0 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
           title="Eliminar trade"
         >
           <Trash2 size={16} />

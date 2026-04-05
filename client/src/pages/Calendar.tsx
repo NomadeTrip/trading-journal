@@ -62,18 +62,18 @@ interface MetricCardProps {
 
 function MetricCard({ label, value, sub, icon, color = "text-gray-700", trend }: MetricCardProps) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between mb-3">
-        <div className="w-9 h-9 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400">
+        <div className="w-9 h-9 rounded-lg bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-400 dark:text-gray-500">
           {icon}
         </div>
         {trend && (
           <span
             className={cn(
               "text-xs font-medium px-2 py-0.5 rounded-full",
-              trend === "up" && "bg-emerald-50 text-emerald-600",
-              trend === "down" && "bg-red-50 text-red-600",
-              trend === "neutral" && "bg-gray-100 text-gray-500"
+              trend === "up" && "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400",
+              trend === "down" && "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400",
+              trend === "neutral" && "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
             )}
           >
             {trend === "up" ? "↑" : trend === "down" ? "↓" : "—"}
@@ -81,8 +81,8 @@ function MetricCard({ label, value, sub, icon, color = "text-gray-700", trend }:
         )}
       </div>
       <p className={cn("text-xl font-bold font-mono tracking-tight", color)}>{value}</p>
-      <p className="text-xs text-gray-400 font-medium mt-0.5">{label}</p>
-      {sub && <p className="text-xs text-gray-300 mt-0.5">{sub}</p>}
+      <p className="text-xs text-gray-400 dark:text-gray-500 font-medium mt-0.5">{label}</p>
+      {sub && <p className="text-xs text-gray-300 dark:text-gray-400 mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -211,14 +211,14 @@ export default function CalendarPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F9FB] p-6">
+    <div className="min-h-screen bg-[#F8F9FB] dark:bg-gray-950 p-6">
       {/* Page header */}
       <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
             Calendario de Trading
           </h1>
-          <p className="text-sm text-gray-400 mt-0.5">
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">
             Registro diario de operaciones
           </p>
         </div>
@@ -259,32 +259,32 @@ export default function CalendarPage() {
       </div>
 
       {/* Calendar */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
         {/* Calendar header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
           <button
             onClick={prevMonth}
-            className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+            className="w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-300 transition-colors"
           >
             <ChevronLeft size={16} />
           </button>
-          <h2 className="text-base font-bold text-gray-900 tracking-tight">
+          <h2 className="text-base font-bold text-gray-900 dark:text-white tracking-tight">
             {MONTHS[month - 1]} {year}
           </h2>
           <button
             onClick={nextMonth}
-            className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+            className="w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-300 transition-colors"
           >
             <ChevronRight size={16} />
           </button>
         </div>
 
         {/* Day headers */}
-        <div className="grid grid-cols-7 border-b border-gray-100">
+        <div className="grid grid-cols-7 border-b border-gray-100 dark:border-gray-700">
           {DAYS_SHORT.map((d) => (
             <div
               key={d}
-              className="py-2.5 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider"
+              className="py-2.5 text-center text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider"
             >
               {d}
             </div>
@@ -298,7 +298,7 @@ export default function CalendarPage() {
               return (
                 <div
                   key={`empty-${idx}`}
-                  className="h-24 border-b border-r border-gray-50 bg-gray-50/30"
+                  className="h-24 border-b border-r border-gray-50 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-700/20"
                 />
               );
             }
@@ -314,14 +314,14 @@ export default function CalendarPage() {
 
             const cellBg =
               dayResult === "TP"
-                ? "bg-emerald-50 hover:bg-emerald-100/80"
+                ? "bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100/80 dark:hover:bg-emerald-900/30"
                 : dayResult === "SL"
-                ? "bg-red-50 hover:bg-red-100/80"
+                ? "bg-red-50 dark:bg-red-900/20 hover:bg-red-100/80 dark:hover:bg-red-900/30"
                 : dayResult === "BE"
-                ? "bg-gray-100 hover:bg-gray-200/80"
+                ? "bg-gray-100 dark:bg-gray-700 hover:bg-gray-200/80 dark:hover:bg-gray-600"
                 : isWeekend
-                ? "bg-gray-50/50 hover:bg-gray-100/50"
-                : "bg-white hover:bg-gray-50";
+                ? "bg-gray-50/50 dark:bg-gray-700/30 hover:bg-gray-100/50 dark:hover:bg-gray-700/50"
+                : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50";
 
             const borderLeft =
               dayResult === "TP"
@@ -336,7 +336,7 @@ export default function CalendarPage() {
               <div
                 key={dateStr}
                 className={cn(
-                  "border-b border-r border-gray-100 transition-all duration-150 relative",
+                  "border-b border-r border-gray-100 dark:border-gray-700 transition-all duration-150 relative",
                   cellBg,
                   borderLeft,
                   isExpanded ? "col-span-7 h-auto" : "h-24"
@@ -353,16 +353,16 @@ export default function CalendarPage() {
                         className={cn(
                           "text-xs font-bold leading-none",
                           isToday
-                            ? "w-5 h-5 bg-[#111827] text-white rounded-full flex items-center justify-center text-[10px]"
+                            ? "w-5 h-5 bg-[#111827] dark:bg-emerald-500 text-white rounded-full flex items-center justify-center text-[10px]"
                             : dayResult
                             ? dayResult === "TP"
-                              ? "text-emerald-700"
+                              ? "text-emerald-700 dark:text-emerald-400"
                               : dayResult === "SL"
-                              ? "text-red-700"
-                              : "text-gray-600"
+                              ? "text-red-700 dark:text-red-400"
+                              : "text-gray-600 dark:text-gray-400"
                             : isWeekend
-                            ? "text-gray-300"
-                            : "text-gray-500"
+                            ? "text-gray-300 dark:text-gray-500"
+                            : "text-gray-500 dark:text-gray-400"
                         )}
                       >
                         {day}
@@ -397,10 +397,10 @@ export default function CalendarPage() {
                           className={cn(
                             "text-xs font-bold font-mono leading-none",
                             dayProfit > 0
-                              ? "text-emerald-600"
+                              ? "text-emerald-600 dark:text-emerald-400"
                               : dayProfit < 0
-                              ? "text-red-600"
-                              : "text-gray-500"
+                              ? "text-red-600 dark:text-red-400"
+                              : "text-gray-500 dark:text-gray-400"
                           )}
                         >
                           {formatCurrency(dayProfit)}
@@ -463,8 +463,8 @@ export default function CalendarPage() {
         </div>
 
         {/* Legend */}
-        <div className="px-6 py-3 border-t border-gray-100 flex items-center gap-4 bg-gray-50/50">
-          <span className="text-xs text-gray-400 font-medium">Leyenda:</span>
+        <div className="px-6 py-3 border-t border-gray-100 dark:border-gray-700 flex items-center gap-4 bg-gray-50/50 dark:bg-gray-700/40">
+          <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">Leyenda:</span>
           {[
             { color: "bg-emerald-500", label: "Take Profit" },
             { color: "bg-red-500", label: "Stop Loss" },
@@ -472,7 +472,7 @@ export default function CalendarPage() {
           ].map(({ color, label }) => (
             <div key={label} className="flex items-center gap-1.5">
               <div className={cn("w-2.5 h-2.5 rounded-sm", color)} />
-              <span className="text-xs text-gray-500">{label}</span>
+              <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">{label}</span>
             </div>
           ))}
         </div>

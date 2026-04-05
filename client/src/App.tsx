@@ -9,6 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
+import ContextMenuBlocker from "./components/ContextMenuBlocker";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { JournalProvider } from "./contexts/JournalContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -55,8 +56,9 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
+      <ContextMenuBlocker />
       <AuthProvider>
-        <ThemeProvider defaultTheme="light">
+        <ThemeProvider defaultTheme="light" switchable={true}>
           <JournalProvider>
             <TooltipProvider>
               <Toaster />

@@ -1,11 +1,11 @@
 /**
  * Layout — Trading Journal Pro
  * Design: Swiss International Style — sidebar oscuro (#111827) + contenido blanco
- * Sidebar fijo izquierdo con navegación vertical
+ * Sidebar fijo izquierdo con navegación vertical + botón de logout + selector de tema
  */
 
 import { useState } from "react";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useRouter } from "wouter";
 import {
   CalendarDays,
   LayoutDashboard,
@@ -13,9 +13,16 @@ import {
   ChevronLeft,
   ChevronRight,
   Activity,
+  LogOut,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useJournal } from "@/contexts/JournalContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
+import Footer from "./Footer";
+import { signOut } from "@/services/authService";
+import { toast } from "sonner";
 
 interface NavItem {
   label: string;
@@ -43,14 +50,30 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const router = useRouter();
   const { getYearMetrics } = useJournal();
+  const { theme, toggleTheme } = useTheme();
   const currentYear = new Date().getFullYear();
   // Note: Layout muestra solo la cuenta por defecto en sidebar
   // El selector de cuenta está en Calendar y Dashboard
   const yearMetrics = getYearMetrics("default-account", currentYear);
 
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      await signOut();
+      toast.success("Sesión cerrada correctamente");
+      router.push("/login");
+    } catch (err: any) {
+      console.error("Error al cerrar sesión:", err);
+      toast.error(err?.message || "Error al cerrar sesión");
+      setIsLoggingOut(false);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen bg-[#F8F9FB]">
+    <div className="flex min-h-screen bg-[#F8F9FB] dark:bg-gray-950">
       {/* Sidebar */}
       <aside
         className={cn(
@@ -72,7 +95,7 @@ export default function Layout({ children }: LayoutProps) {
               </div>
               <div>
                 <p className="text-white font-semibold text-sm leading-none tracking-tight">
-                  Bastian Trade
+                  Bastian Trader
                 </p>
                 <p className="text-emerald-400 text-xs font-medium tracking-widest uppercase">
                   Journal
@@ -155,8 +178,8 @@ export default function Layout({ children }: LayoutProps) {
           </div>
         )}
 
-        {/* Bottom section */}
-        <div className="border-t border-white/10 p-2">
+        {/* Bottom section - Status + Theme + Logout */}
+        <div className="border-t border-white/10 p-2 space-y-1">
           <div
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-all cursor-pointer",
@@ -166,6 +189,43 @@ export default function Layout({ children }: LayoutProps) {
             <Activity size={18} />
             {!collapsed && <span className="text-sm font-medium">Estado: Activo</span>}
           </div>
+
+          {/* Theme toggle button */}
+          {toggleTheme && (
+            <button
+              onClick={toggleTheme}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-all cursor-pointer",
+                collapsed && "justify-center px-2"
+              )}
+              title={theme === "light" ? "Cambiar a tema oscuro" : "Cambiar a tema claro"}
+            >
+              {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
+              {!collapsed && (
+                <span className="text-sm font-medium">
+                  {theme === "light" ? "Tema Oscuro" : "Tema Claro"}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Logout button */}
+          <button
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
+              collapsed && "justify-center px-2"
+            )}
+            title="Cerrar sesión"
+          >
+            <LogOut size={18} />
+            {!collapsed && (
+              <span className="text-sm font-medium">
+                {isLoggingOut ? "Cerrando..." : "Cerrar sesión"}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Collapse toggle */}
@@ -177,15 +237,18 @@ export default function Layout({ children }: LayoutProps) {
         </button>
       </aside>
 
-      {/* Main content */}
-      <main
+      {/* Main content + Footer */}
+      <div
         className={cn(
-          "flex-1 transition-all duration-300 ease-in-out min-h-screen",
+          "flex-1 transition-all duration-300 ease-in-out flex flex-col min-h-screen bg-[#F8F9FB] dark:bg-gray-950",
           collapsed ? "ml-16" : "ml-56"
         )}
       >
-        {children}
-      </main>
+        <main className="flex-1">
+          {children}
+        </main>
+        <Footer />
+      </div>
     </div>
   );
 }

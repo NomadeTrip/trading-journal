@@ -75,7 +75,7 @@ export default function ExportData({ accountId, year }: ExportDataProps) {
       <html>
       <head>
         <meta charset="UTF-8">
-        <title>Trading Journal Report</title>
+        <title>BastianTrader Journal Report V1.0</title>
         <style>
           body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
           h1 { color: #111827; border-bottom: 2px solid #10b981; padding-bottom: 10px; }
@@ -94,7 +94,7 @@ export default function ExportData({ accountId, year }: ExportDataProps) {
         </style>
       </head>
       <body>
-        <h1>Trading Journal Report</h1>
+        <h1>BastianTrader Journal Report V1.0</h1>
         <p><strong>Cuenta:</strong> ${account.name}</p>
         <p><strong>Año:</strong> ${year}</p>
         <p><strong>Fecha de Generación:</strong> ${new Date().toLocaleDateString("es-ES")}</p>

@@ -23,26 +23,29 @@ interface TradeModalProps {
   onDelete?: () => void;
 }
 
-const RESULT_OPTIONS: { value: TradeResult; label: string; color: string; bg: string; icon: React.ReactNode }[] = [
+const RESULT_OPTIONS: { value: TradeResult; label: string; color: string; bg: string; bgDark: string; icon: React.ReactNode }[] = [
   {
     value: "TP",
     label: "Take Profit",
-    color: "text-emerald-600",
-    bg: "bg-emerald-50 border-emerald-300 hover:bg-emerald-100",
+    color: "text-emerald-600 dark:text-emerald-400",
+    bg: "bg-emerald-50 border-emerald-300 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:border-emerald-700 dark:hover:bg-emerald-900/50",
+    bgDark: "dark:bg-emerald-900/30 dark:border-emerald-700 dark:hover:bg-emerald-900/50",
     icon: <CheckCircle2 size={16} />,
   },
   {
     value: "SL",
     label: "Stop Loss",
-    color: "text-red-600",
-    bg: "bg-red-50 border-red-300 hover:bg-red-100",
+    color: "text-red-600 dark:text-red-400",
+    bg: "bg-red-50 border-red-300 hover:bg-red-100 dark:bg-red-900/30 dark:border-red-700 dark:hover:bg-red-900/50",
+    bgDark: "dark:bg-red-900/30 dark:border-red-700 dark:hover:bg-red-900/50",
     icon: <XCircle size={16} />,
   },
   {
     value: "BE",
     label: "Break Even",
-    color: "text-gray-600",
-    bg: "bg-gray-50 border-gray-300 hover:bg-gray-100",
+    color: "text-gray-600 dark:text-gray-400",
+    bg: "bg-gray-50 border-gray-300 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600",
+    bgDark: "dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600",
     icon: <Minus size={16} />,
   },
 ];
@@ -144,18 +147,18 @@ export default function TradeModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl bg-white">
+      <DialogContent className="max-w-2xl bg-white dark:bg-gray-800">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <div>
-              <div className="text-sm font-normal text-gray-600">
+              <div className="text-sm font-normal text-gray-600 dark:text-gray-400">
                 {account?.name} • {formatDate(date)}
               </div>
-              <div className="text-lg font-bold text-gray-900 mt-1">
+              <div className="text-lg font-bold text-gray-900 dark:text-white mt-1">
                 {existingTradeId ? "Editar trade" : "Nuevo trade"}
               </div>
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <button onClick={onClose} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400">
               <X size={20} />
             </button>
           </DialogTitle>
@@ -164,7 +167,7 @@ export default function TradeModal({
         <div className="space-y-6 py-4">
           {/* Resultado */}
           <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-3">
+            <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-3">
               <span className="text-red-500">*</span> RESULTADO
             </label>
             <div className="flex gap-3">
@@ -176,11 +179,11 @@ export default function TradeModal({
                     "flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all",
                     result === option.value
                       ? `${option.bg} border-current`
-                      : "border-gray-200 bg-white hover:border-gray-300"
+                      : "border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-500"
                   )}
                 >
                   <span className={option.color}>{option.icon}</span>
-                  <span className="text-sm font-medium">{option.label}</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{option.label}</span>
                 </button>
               ))}
             </div>
@@ -188,7 +191,7 @@ export default function TradeModal({
 
           {/* Profit / Pérdida */}
           <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">
+            <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
               <span className="text-red-500">*</span> PROFIT / PÉRDIDA (USD)
             </label>
             <input
@@ -196,13 +199,13 @@ export default function TradeModal({
               placeholder="0.00"
               value={profitStr}
               onChange={(e) => setProfitStr(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
             />
           </div>
 
           {/* Instrumento */}
           <div className="relative">
-            <label className="block text-sm font-semibold text-gray-900 mb-2">
+            <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
               <span className="text-red-500">*</span> INSTRUMENTO / PAR
             </label>
             <div className="relative">
@@ -216,10 +219,10 @@ export default function TradeModal({
                 }}
                 onFocus={() => setShowInstrumentSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowInstrumentSuggestions(false), 200)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
               />
               {showInstrumentSuggestions && filteredInstruments.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-10">
                   {filteredInstruments.map((inst) => (
                     <button
                       key={inst}
@@ -227,7 +230,7 @@ export default function TradeModal({
                         setInstrument(inst);
                         setShowInstrumentSuggestions(false);
                       }}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                      className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-sm text-gray-900 dark:text-white"
                     >
                       {inst}
                     </button>
@@ -239,24 +242,24 @@ export default function TradeModal({
 
           {/* Notas */}
           <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">
+            <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
               NOTAS DEL TRADE
             </label>
             <Textarea
               placeholder="¿Qué hice bien? ¿Qué mejorar? Contexto del mercado..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="min-h-24 resize-none"
+              className="min-h-24 resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-500"
             />
           </div>
 
           {/* Captura de pantalla */}
           <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">
+            <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
               CAPTURA DEL TRADE
             </label>
             {imageUrl ? (
-              <div className="relative w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
+              <div className="relative w-full h-48 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
                 <img src={imageUrl} alt="Trade screenshot" className="w-full h-full object-cover" />
                 <button
                   onClick={() => setImageUrl("")}
@@ -268,7 +271,7 @@ export default function TradeModal({
             ) : (
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-blue-500 transition-colors flex flex-col items-center gap-2 text-gray-600 hover:text-blue-500"
+                className="w-full border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 hover:border-blue-500 dark:hover:border-blue-400 transition-colors flex flex-col items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400"
               >
                 <ImageIcon size={24} />
                 <span className="text-sm">Subir captura de pantalla</span>

@@ -95,18 +95,18 @@ export default function AccountManager({
       <div className="relative">
         <button
           onClick={() => setShowDropdown((v) => !v)}
-          className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold text-gray-700 hover:border-emerald-300 transition-colors shadow-sm w-full md:w-auto"
+          className="flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:border-emerald-300 dark:hover:border-emerald-600 transition-colors shadow-sm w-full md:w-auto"
         >
           <div
             className="w-2.5 h-2.5 rounded-full"
             style={{ backgroundColor: selectedAccount?.color || "#10b981" }}
           />
           <span className="truncate">{selectedAccount?.name || "Seleccionar cuenta"}</span>
-          <ChevronDown size={14} className="text-gray-400 ml-auto shrink-0" />
+          <ChevronDown size={14} className="text-gray-400 dark:text-gray-500 ml-auto shrink-0" />
         </button>
 
         {showDropdown && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-lg shadow-lg z-20 overflow-hidden">
+          <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg shadow-lg z-20 overflow-hidden">
             {accounts.map((account) => {
               const balance = getAccountBalance(account.id);
               const isSelected = account.id === selectedAccountId;
@@ -118,8 +118,8 @@ export default function AccountManager({
                     setShowDropdown(false);
                   }}
                   className={cn(
-                    "w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-b-0 flex items-center justify-between group",
-                    isSelected && "bg-emerald-50"
+                    "w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border-b border-gray-50 dark:border-gray-700 last:border-b-0 flex items-center justify-between group",
+                    isSelected && "bg-emerald-50 dark:bg-emerald-900/30"
                   )}
                 >
                   <div className="flex items-center gap-2.5 flex-1 min-w-0">
@@ -128,10 +128,10 @@ export default function AccountManager({
                       style={{ backgroundColor: account.color }}
                     />
                     <div className="min-w-0">
-                      <p className={cn("font-semibold truncate", isSelected && "text-emerald-600")}>
+                      <p className={cn("font-semibold truncate", isSelected && "text-emerald-600 dark:text-emerald-400")}>
                         {account.name}
                       </p>
-                      <p className="text-xs text-gray-400 font-mono">
+                      <p className="text-xs text-gray-400 dark:text-gray-500 font-mono">
                         ${balance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
                     </div>
@@ -143,7 +143,7 @@ export default function AccountManager({
                         handleEditClick(account);
                         setShowDropdown(false);
                       }}
-                      className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                      className="w-6 h-6 rounded flex items-center justify-center text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-400"
                     >
                       <Edit2 size={12} />
                     </button>
@@ -154,7 +154,7 @@ export default function AccountManager({
                           handleDeleteAccount(account.id);
                           setShowDropdown(false);
                         }}
-                        className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500"
+                        className="w-6 h-6 rounded flex items-center justify-center text-gray-400 dark:text-gray-500 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500 dark:hover:text-red-400"
                       >
                         <Trash2 size={12} />
                       </button>
@@ -171,7 +171,7 @@ export default function AccountManager({
                 setShowCreateModal(true);
                 setShowDropdown(false);
               }}
-              className="w-full px-4 py-2.5 text-left text-sm text-emerald-600 hover:bg-emerald-50 transition-colors font-semibold flex items-center gap-2 border-t border-gray-100"
+              className="w-full px-4 py-2.5 text-left text-sm text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors font-semibold flex items-center gap-2 border-t border-gray-100 dark:border-gray-700"
             >
               <Plus size={14} />
               Nueva cuenta
@@ -182,8 +182,8 @@ export default function AccountManager({
 
       {/* Create/Edit account modal */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <DialogContent className="max-w-md w-full bg-white border border-gray-100 shadow-2xl rounded-2xl p-0 overflow-hidden">
-          <div className="bg-[#111827] px-6 py-4">
+        <DialogContent className="max-w-md w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-2xl rounded-2xl p-0 overflow-hidden">
+          <div className="bg-[#111827] dark:bg-gray-900 px-6 py-4">
             <DialogHeader>
               <DialogTitle className="text-white font-semibold text-base">
                 {editingId ? "Editar cuenta" : "Nueva cuenta de trading"}
@@ -194,7 +194,7 @@ export default function AccountManager({
           <div className="px-6 py-5 space-y-4">
             {/* Name */}
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1.5">
                 Nombre de la cuenta
               </label>
               <input
@@ -202,17 +202,17 @@ export default function AccountManager({
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="ej: Cuenta FTMO 50K"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent bg-gray-50"
+                className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:focus:ring-emerald-500 focus:border-transparent"
               />
             </div>
 
             {/* Initial Balance */}
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1.5">
                 Balance inicial (USD)
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 text-sm font-medium">
                   $
                 </span>
                 <input
@@ -220,14 +220,14 @@ export default function AccountManager({
                   value={formData.initialBalance}
                   onChange={(e) => setFormData({ ...formData, initialBalance: e.target.value })}
                   placeholder="1000"
-                  className="w-full pl-7 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent bg-gray-50"
+                  className="w-full pl-7 pr-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-mono bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:focus:ring-emerald-500 focus:border-transparent"
                 />
               </div>
             </div>
 
             {/* Color selector */}
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-2">
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-2">
                 Color de la cuenta
               </label>
               <div className="grid grid-cols-8 gap-2">
@@ -238,8 +238,8 @@ export default function AccountManager({
                     className={cn(
                       "w-7 h-7 rounded-lg border-2 transition-all",
                       selectedColor === color
-                        ? "border-gray-900 ring-2 ring-offset-1 ring-gray-900"
-                        : "border-gray-200 hover:border-gray-300"
+                        ? "border-gray-900 dark:border-white ring-2 ring-offset-1 ring-gray-900 dark:ring-white"
+                        : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
                     )}
                     style={{ backgroundColor: color }}
                   />
@@ -249,7 +249,7 @@ export default function AccountManager({
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-2 bg-gray-50/50">
+          <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-end gap-2 bg-gray-50/50 dark:bg-gray-700/30">
             <Button variant="outline" size="sm" onClick={() => setShowCreateModal(false)}>
               Cancelar
             </Button>
