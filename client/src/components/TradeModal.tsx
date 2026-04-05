@@ -19,7 +19,7 @@ interface TradeModalProps {
   date: string; // "YYYY-MM-DD"
   accountId: string;
   existingTradeId?: string;
-  onSave: (trade: { result: TradeResult; profit: number; instrument: string; notes: string; imageUrl: string }) => void;
+  onSave: (trade: { result: TradeResult; profit: number; instrument: string; notes: string; imageUrl: string }) => void | Promise<void>;
   onDelete?: () => void;
 }
 
@@ -98,9 +98,9 @@ export default function TradeModal({
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!result || !profitStr || !instrument) {
-      alert("Por favor completa todos los campos requeridos");
+      toast.error("Por favor completa todos los campos requeridos");
       return;
     }
 
@@ -112,24 +112,33 @@ export default function TradeModal({
       imageUrl,
     };
 
-    if (existingTradeId) {
-      updateTrade(existingTradeId, tradeData);
-      toast.success("Trade actualizado correctamente");
-    } else {
-      if (onSave) {
-        onSave(tradeData);
+    try {
+      if (existingTradeId) {
+        await updateTrade(existingTradeId, tradeData);
+        toast.success("Trade actualizado correctamente");
+        onClose();
+      } else {
+        if (onSave) {
+          await onSave(tradeData);
+        }
       }
+    } catch (err: any) {
+      console.error("Error al guardar trade:", err);
+      toast.error(err?.message || "Error al guardar el trade");
     }
-
-    onClose();
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!existingTradeId) return;
-    if (confirm("¿Eliminar este trade? Los balances se recalcularán automáticamente.")) {
-      deleteTrade(existingTradeId);
-      toast.success("Trade eliminado correctamente");
-      onClose();
+    if (confirm("\u00bfEliminar este trade? Los balances se recalcular\u00e1n autom\u00e1ticamente.")) {
+      try {
+        await deleteTrade(existingTradeId);
+        toast.success("Trade eliminado correctamente");
+        onClose();
+      } catch (err: any) {
+        console.error("Error al eliminar trade:", err);
+        toast.error(err?.message || "Error al eliminar el trade");
+      }
     }
   };
 

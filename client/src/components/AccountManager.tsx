@@ -5,6 +5,7 @@
  */
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { Plus, Edit2, Trash2, ChevronDown, Calendar, DollarSign } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -33,31 +34,50 @@ export default function AccountManager({
   const selectedAccount = getAccount(selectedAccountId);
   const currentBalance = getAccountBalance(selectedAccountId);
 
-  const handleCreateAccount = () => {
+  const handleCreateAccount = async () => {
     if (!formData.name.trim() || !formData.initialBalance) return;
-    createAccount(formData.name, parseFloat(formData.initialBalance), selectedColor);
-    setFormData({ name: "", initialBalance: "" });
-    setSelectedColor(ACCOUNT_COLORS_LIST[0]);
-    setShowCreateModal(false);
+    try {
+      await createAccount(formData.name, parseFloat(formData.initialBalance), selectedColor);
+      setFormData({ name: "", initialBalance: "" });
+      setSelectedColor(ACCOUNT_COLORS_LIST[0]);
+      setShowCreateModal(false);
+      toast.success("Cuenta creada correctamente");
+    } catch (err: any) {
+      console.error("Error al crear cuenta:", err);
+      toast.error(err?.message || "Error al crear la cuenta");
+    }
   };
 
-  const handleUpdateAccount = () => {
+  const handleUpdateAccount = async () => {
     if (!editingId || !formData.name.trim()) return;
-    updateAccount(editingId, {
-      name: formData.name,
-      initialBalance: parseFloat(formData.initialBalance) || undefined,
-      color: selectedColor,
-    });
-    setEditingId(null);
-    setFormData({ name: "", initialBalance: "" });
-    setShowCreateModal(false);
+    try {
+      await updateAccount(editingId, {
+        name: formData.name,
+        initialBalance: parseFloat(formData.initialBalance) || undefined,
+        color: selectedColor,
+      });
+      setEditingId(null);
+      setFormData({ name: "", initialBalance: "" });
+      setShowCreateModal(false);
+      toast.success("Cuenta actualizada correctamente");
+    } catch (err: any) {
+      console.error("Error al actualizar cuenta:", err);
+      toast.error(err?.message || "Error al actualizar la cuenta");
+    }
   };
 
-  const handleDeleteAccount = (accountId: string) => {
+  const handleDeleteAccount = async (accountId: string) => {
     if (accounts.length > 1) {
-      deleteAccount(accountId);
-      if (selectedAccountId === accountId) {
-        onSelectAccount(accounts[0].id);
+      try {
+        await deleteAccount(accountId);
+        if (selectedAccountId === accountId) {
+          const remaining = accounts.filter((a) => a.id !== accountId);
+          if (remaining.length > 0) onSelectAccount(remaining[0].id);
+        }
+        toast.success("Cuenta eliminada");
+      } catch (err: any) {
+        console.error("Error al eliminar cuenta:", err);
+        toast.error(err?.message || "Error al eliminar la cuenta");
       }
     }
   };

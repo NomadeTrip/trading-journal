@@ -4,7 +4,7 @@
  * TP=verde esmeralda, SL=rojo coral, BE=gris neutro
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -22,6 +22,7 @@ import TradeModal from "@/components/TradeModal";
 import TradeItem from "@/components/TradeItem";
 import AccountManager from "@/components/AccountManager";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 const MONTHS = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -95,16 +96,25 @@ export default function CalendarPage() {
     deleteTrade,
     getAccount,
     getAccountBalance,
+    getAllAccounts,
   } = useJournal();
 
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
-  const [selectedAccountId, setSelectedAccountId] = useState("default-account");
+  const [selectedAccountId, setSelectedAccountId] = useState("");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+
+  // Seleccionar automáticamente la primera cuenta cuando se carguen los datos
+  const allAccounts = getAllAccounts();
+  useEffect(() => {
+    if (!selectedAccountId && allAccounts.length > 0) {
+      setSelectedAccountId(allAccounts[0].id);
+    }
+  }, [allAccounts, selectedAccountId]);
 
   const account = getAccount(selectedAccountId);
   const metrics = getAccountMetrics(selectedAccountId, year, month);
@@ -133,16 +143,28 @@ export default function CalendarPage() {
     setModalOpen(true);
   };
 
-  const handleSaveTrade = (trade: any) => {
-    if (selectedDate) {
-      setTrade(selectedDate, selectedAccountId, trade);
-      setModalOpen(false);
+  const handleSaveTrade = async (trade: any) => {
+    if (selectedDate && selectedAccountId) {
+      try {
+        await setTrade(selectedDate, selectedAccountId, trade);
+        setModalOpen(false);
+        toast.success("Trade guardado correctamente");
+      } catch (err: any) {
+        console.error("Error al guardar trade:", err);
+        toast.error(err?.message || "Error al guardar el trade");
+      }
     }
   };
 
-  const handleDeleteTrade = (tradeId: string) => {
-    deleteTrade(tradeId);
-    setModalOpen(false);
+  const handleDeleteTrade = async (tradeId: string) => {
+    try {
+      await deleteTrade(tradeId);
+      setModalOpen(false);
+      toast.success("Trade eliminado");
+    } catch (err: any) {
+      console.error("Error al eliminar trade:", err);
+      toast.error(err?.message || "Error al eliminar el trade");
+    }
   };
 
   const toggleDayExpanded = (dateStr: string) => {

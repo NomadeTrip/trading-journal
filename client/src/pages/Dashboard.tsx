@@ -4,7 +4,7 @@
  * Equity curve, drawdown, profit factor, tabla mensual, comparación multicuenta
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   AreaChart,
   Area,
@@ -122,13 +122,21 @@ const MonthlyTooltip = ({ active, payload, label }: any) => {
 export default function DashboardPage() {
   const { getAllAccounts, getYearMetrics, getAccount, getAccountBalance, getTradesByAccount } = useJournal();
   const currentYear = new Date().getFullYear();
-  const [selectedAccountId, setSelectedAccountId] = useState("default-account");
+  const [selectedAccountId, setSelectedAccountId] = useState("");
   const [yearDropdown, setYearDropdown] = useState(false);
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [showComparison, setShowComparison] = useState(false);
   const [selectedInstrument, setSelectedInstrument] = useState<string | null>(null);
 
   const accounts = getAllAccounts();
+
+  // Seleccionar automáticamente la primera cuenta cuando se carguen los datos
+  useEffect(() => {
+    if (!selectedAccountId && accounts.length > 0) {
+      setSelectedAccountId(accounts[0].id);
+    }
+  }, [accounts, selectedAccountId]);
+
   const selectedAccount = getAccount(selectedAccountId);
   const metrics = useMemo(() => getYearMetrics(selectedAccountId, selectedYear), [selectedAccountId, selectedYear, getYearMetrics]);
 

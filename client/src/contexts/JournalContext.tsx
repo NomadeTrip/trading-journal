@@ -10,6 +10,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import * as dataService from "@/services/dataService";
+import { supabase } from "@/lib/supabase";
 
 export type TradeResult = "TP" | "SL" | "BE" | null;
 
@@ -160,20 +161,32 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<JournalData>({ accounts: {}, trades: {} });
   const [loading, setLoading] = useState(true);
 
-  // Cargar datos al montar el componente
+  // Cargar datos cuando el usuario esté autenticado
   useEffect(() => {
-    const loadData = async () => {
+    let isMounted = true;
+
+    const loadData = async (userId: string | undefined) => {
+      if (!userId) {
+        if (isMounted) {
+          setData({ accounts: {}, trades: {} });
+          setLoading(false);
+        }
+        return;
+      }
+
       try {
-        setLoading(true);
-        
+        if (isMounted) setLoading(true);
+
         // Inicializar datos por defecto si es necesario
         await dataService.initializeDefaultData();
-        
+
         // Cargar cuentas y trades
         const [accounts, trades] = await Promise.all([
           dataService.getAccounts(),
           dataService.getTrades(),
         ]);
+
+        if (!isMounted) return;
 
         // Convertir a formato UI
         const accountsMap: Record<string, TradingAccount> = {};
@@ -190,11 +203,24 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error("Error loading data:", error);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
-    loadData();
+    // Suscribirse a cambios de autenticación para recargar datos
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      loadData(session?.user?.id);
+    });
+
+    // Cargar datos con la sesión actual
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      loadData(session?.user?.id);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Account management

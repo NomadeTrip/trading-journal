@@ -72,7 +72,7 @@ export default function Layout({ children }: LayoutProps) {
               </div>
               <div>
                 <p className="text-white font-semibold text-sm leading-none tracking-tight">
-                  Trading
+                  Bastian Trade
                 </p>
                 <p className="text-emerald-400 text-xs font-medium tracking-widest uppercase">
                   Journal

@@ -1,0 +1,352 @@
+diff --git a/client/src/components/AccountManager.tsx b/client/src/components/AccountManager.tsx
+index ecebaa8..73090a1 100644
+--- a/client/src/components/AccountManager.tsx
++++ b/client/src/components/AccountManager.tsx
+@@ -5,6 +5,7 @@
+  */
+ 
+ import { useState } from "react";
++import { toast } from "sonner";
+ import { Plus, Edit2, Trash2, ChevronDown, Calendar, DollarSign } from "lucide-react";
+ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+ import { Button } from "@/components/ui/button";
+@@ -33,31 +34,50 @@ export default function AccountManager({
+   const selectedAccount = getAccount(selectedAccountId);
+   const currentBalance = getAccountBalance(selectedAccountId);
+ 
+-  const handleCreateAccount = () => {
++  const handleCreateAccount = async () => {
+     if (!formData.name.trim() || !formData.initialBalance) return;
+-    createAccount(formData.name, parseFloat(formData.initialBalance), selectedColor);
+-    setFormData({ name: "", initialBalance: "" });
+-    setSelectedColor(ACCOUNT_COLORS_LIST[0]);
+-    setShowCreateModal(false);
++    try {
++      await createAccount(formData.name, parseFloat(formData.initialBalance), selectedColor);
++      setFormData({ name: "", initialBalance: "" });
++      setSelectedColor(ACCOUNT_COLORS_LIST[0]);
++      setShowCreateModal(false);
++      toast.success("Cuenta creada correctamente");
++    } catch (err: any) {
++      console.error("Error al crear cuenta:", err);
++      toast.error(err?.message || "Error al crear la cuenta");
++    }
+   };
+ 
+-  const handleUpdateAccount = () => {
++  const handleUpdateAccount = async () => {
+     if (!editingId || !formData.name.trim()) return;
+-    updateAccount(editingId, {
+-      name: formData.name,
+-      initialBalance: parseFloat(formData.initialBalance) || undefined,
+-      color: selectedColor,
+-    });
+-    setEditingId(null);
+-    setFormData({ name: "", initialBalance: "" });
+-    setShowCreateModal(false);
++    try {
++      await updateAccount(editingId, {
++        name: formData.name,
++        initialBalance: parseFloat(formData.initialBalance) || undefined,
++        color: selectedColor,
++      });
++      setEditingId(null);
++      setFormData({ name: "", initialBalance: "" });
++      setShowCreateModal(false);
++      toast.success("Cuenta actualizada correctamente");
++    } catch (err: any) {
++      console.error("Error al actualizar cuenta:", err);
++      toast.error(err?.message || "Error al actualizar la cuenta");
++    }
+   };
+ 
+-  const handleDeleteAccount = (accountId: string) => {
++  const handleDeleteAccount = async (accountId: string) => {
+     if (accounts.length > 1) {
+-      deleteAccount(accountId);
+-      if (selectedAccountId === accountId) {
+-        onSelectAccount(accounts[0].id);
++      try {
++        await deleteAccount(accountId);
++        if (selectedAccountId === accountId) {
++          const remaining = accounts.filter((a) => a.id !== accountId);
++          if (remaining.length > 0) onSelectAccount(remaining[0].id);
++        }
++        toast.success("Cuenta eliminada");
++      } catch (err: any) {
++        console.error("Error al eliminar cuenta:", err);
++        toast.error(err?.message || "Error al eliminar la cuenta");
+       }
+     }
+   };
+diff --git a/client/src/components/TradeModal.tsx b/client/src/components/TradeModal.tsx
+index ff38581..ac92f26 100644
+--- a/client/src/components/TradeModal.tsx
++++ b/client/src/components/TradeModal.tsx
+@@ -19,7 +19,7 @@ interface TradeModalProps {
+   date: string; // "YYYY-MM-DD"
+   accountId: string;
+   existingTradeId?: string;
+-  onSave: (trade: { result: TradeResult; profit: number; instrument: string; notes: string; imageUrl: string }) => void;
++  onSave: (trade: { result: TradeResult; profit: number; instrument: string; notes: string; imageUrl: string }) => void | Promise<void>;
+   onDelete?: () => void;
+ }
+ 
+@@ -98,9 +98,9 @@ export default function TradeModal({
+     }
+   };
+ 
+-  const handleSave = () => {
++  const handleSave = async () => {
+     if (!result || !profitStr || !instrument) {
+-      alert("Por favor completa todos los campos requeridos");
++      toast.error("Por favor completa todos los campos requeridos");
+       return;
+     }
+ 
+@@ -112,24 +112,33 @@ export default function TradeModal({
+       imageUrl,
+     };
+ 
+-    if (existingTradeId) {
+-      updateTrade(existingTradeId, tradeData);
+-      toast.success("Trade actualizado correctamente");
+-    } else {
+-      if (onSave) {
+-        onSave(tradeData);
++    try {
++      if (existingTradeId) {
++        await updateTrade(existingTradeId, tradeData);
++        toast.success("Trade actualizado correctamente");
++        onClose();
++      } else {
++        if (onSave) {
++          await onSave(tradeData);
++        }
+       }
++    } catch (err: any) {
++      console.error("Error al guardar trade:", err);
++      toast.error(err?.message || "Error al guardar el trade");
+     }
+-
+-    onClose();
+   };
+ 
+-  const handleDelete = () => {
++  const handleDelete = async () => {
+     if (!existingTradeId) return;
+-    if (confirm("¿Eliminar este trade? Los balances se recalcularán automáticamente.")) {
+-      deleteTrade(existingTradeId);
+-      toast.success("Trade eliminado correctamente");
+-      onClose();
++    if (confirm("\u00bfEliminar este trade? Los balances se recalcular\u00e1n autom\u00e1ticamente.")) {
++      try {
++        await deleteTrade(existingTradeId);
++        toast.success("Trade eliminado correctamente");
++        onClose();
++      } catch (err: any) {
++        console.error("Error al eliminar trade:", err);
++        toast.error(err?.message || "Error al eliminar el trade");
++      }
+     }
+   };
+ 
+diff --git a/client/src/contexts/JournalContext.tsx b/client/src/contexts/JournalContext.tsx
+index d87f0f5..c3ad11d 100644
+--- a/client/src/contexts/JournalContext.tsx
++++ b/client/src/contexts/JournalContext.tsx
+@@ -10,6 +10,7 @@
+ 
+ import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
+ import * as dataService from "@/services/dataService";
++import { supabase } from "@/lib/supabase";
+ 
+ export type TradeResult = "TP" | "SL" | "BE" | null;
+ 
+@@ -160,21 +161,33 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
+   const [data, setData] = useState<JournalData>({ accounts: {}, trades: {} });
+   const [loading, setLoading] = useState(true);
+ 
+-  // Cargar datos al montar el componente
++  // Cargar datos cuando el usuario esté autenticado
+   useEffect(() => {
+-    const loadData = async () => {
++    let isMounted = true;
++
++    const loadData = async (userId: string | undefined) => {
++      if (!userId) {
++        if (isMounted) {
++          setData({ accounts: {}, trades: {} });
++          setLoading(false);
++        }
++        return;
++      }
++
+       try {
+-        setLoading(true);
+-        
++        if (isMounted) setLoading(true);
++
+         // Inicializar datos por defecto si es necesario
+         await dataService.initializeDefaultData();
+-        
++
+         // Cargar cuentas y trades
+         const [accounts, trades] = await Promise.all([
+           dataService.getAccounts(),
+           dataService.getTrades(),
+         ]);
+ 
++        if (!isMounted) return;
++
+         // Convertir a formato UI
+         const accountsMap: Record<string, TradingAccount> = {};
+         for (const acc of accounts) {
+@@ -190,11 +203,24 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
+       } catch (error) {
+         console.error("Error loading data:", error);
+       } finally {
+-        setLoading(false);
++        if (isMounted) setLoading(false);
+       }
+     };
+ 
+-    loadData();
++    // Suscribirse a cambios de autenticación para recargar datos
++    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
++      loadData(session?.user?.id);
++    });
++
++    // Cargar datos con la sesión actual
++    supabase.auth.getSession().then(({ data: { session } }) => {
++      loadData(session?.user?.id);
++    });
++
++    return () => {
++      isMounted = false;
++      subscription.unsubscribe();
++    };
+   }, []);
+ 
+   // Account management
+diff --git a/client/src/pages/Calendar.tsx b/client/src/pages/Calendar.tsx
+index 51fa9b3..a16483c 100644
+--- a/client/src/pages/Calendar.tsx
++++ b/client/src/pages/Calendar.tsx
+@@ -4,7 +4,7 @@
+  * TP=verde esmeralda, SL=rojo coral, BE=gris neutro
+  */
+ 
+-import { useState } from "react";
++import { useState, useEffect } from "react";
+ import {
+   ChevronLeft,
+   ChevronRight,
+@@ -22,6 +22,7 @@ import TradeModal from "@/components/TradeModal";
+ import TradeItem from "@/components/TradeItem";
+ import AccountManager from "@/components/AccountManager";
+ import { Button } from "@/components/ui/button";
++import { toast } from "sonner";
+ 
+ const MONTHS = [
+   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+@@ -95,17 +96,26 @@ export default function CalendarPage() {
+     deleteTrade,
+     getAccount,
+     getAccountBalance,
++    getAllAccounts,
+   } = useJournal();
+ 
+   const today = new Date();
+   const [year, setYear] = useState(today.getFullYear());
+   const [month, setMonth] = useState(today.getMonth() + 1);
+-  const [selectedAccountId, setSelectedAccountId] = useState("default-account");
++  const [selectedAccountId, setSelectedAccountId] = useState("");
+   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
+   const [modalOpen, setModalOpen] = useState(false);
+   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+ 
++  // Seleccionar automáticamente la primera cuenta cuando se carguen los datos
++  const allAccounts = getAllAccounts();
++  useEffect(() => {
++    if (!selectedAccountId && allAccounts.length > 0) {
++      setSelectedAccountId(allAccounts[0].id);
++    }
++  }, [allAccounts, selectedAccountId]);
++
+   const account = getAccount(selectedAccountId);
+   const metrics = getAccountMetrics(selectedAccountId, year, month);
+   const daysInMonth = getDaysInMonth(year, month);
+@@ -133,16 +143,28 @@ export default function CalendarPage() {
+     setModalOpen(true);
+   };
+ 
+-  const handleSaveTrade = (trade: any) => {
+-    if (selectedDate) {
+-      setTrade(selectedDate, selectedAccountId, trade);
+-      setModalOpen(false);
++  const handleSaveTrade = async (trade: any) => {
++    if (selectedDate && selectedAccountId) {
++      try {
++        await setTrade(selectedDate, selectedAccountId, trade);
++        setModalOpen(false);
++        toast.success("Trade guardado correctamente");
++      } catch (err: any) {
++        console.error("Error al guardar trade:", err);
++        toast.error(err?.message || "Error al guardar el trade");
++      }
+     }
+   };
+ 
+-  const handleDeleteTrade = (tradeId: string) => {
+-    deleteTrade(tradeId);
+-    setModalOpen(false);
++  const handleDeleteTrade = async (tradeId: string) => {
++    try {
++      await deleteTrade(tradeId);
++      setModalOpen(false);
++      toast.success("Trade eliminado");
++    } catch (err: any) {
++      console.error("Error al eliminar trade:", err);
++      toast.error(err?.message || "Error al eliminar el trade");
++    }
+   };
+ 
+   const toggleDayExpanded = (dateStr: string) => {
+diff --git a/client/src/pages/Dashboard.tsx b/client/src/pages/Dashboard.tsx
+index 9aca19d..a385d82 100644
+--- a/client/src/pages/Dashboard.tsx
++++ b/client/src/pages/Dashboard.tsx
+@@ -4,7 +4,7 @@
+  * Equity curve, drawdown, profit factor, tabla mensual, comparación multicuenta
+  */
+ 
+-import { useState, useMemo } from "react";
++import { useState, useMemo, useEffect } from "react";
+ import {
+   AreaChart,
+   Area,
+@@ -122,13 +122,21 @@ const MonthlyTooltip = ({ active, payload, label }: any) => {
+ export default function DashboardPage() {
+   const { getAllAccounts, getYearMetrics, getAccount, getAccountBalance, getTradesByAccount } = useJournal();
+   const currentYear = new Date().getFullYear();
+-  const [selectedAccountId, setSelectedAccountId] = useState("default-account");
++  const [selectedAccountId, setSelectedAccountId] = useState("");
+   const [yearDropdown, setYearDropdown] = useState(false);
+   const [selectedYear, setSelectedYear] = useState(currentYear);
+   const [showComparison, setShowComparison] = useState(false);
+   const [selectedInstrument, setSelectedInstrument] = useState<string | null>(null);
+ 
+   const accounts = getAllAccounts();
++
++  // Seleccionar automáticamente la primera cuenta cuando se carguen los datos
++  useEffect(() => {
++    if (!selectedAccountId && accounts.length > 0) {
++      setSelectedAccountId(accounts[0].id);
++    }
++  }, [accounts, selectedAccountId]);
++
+   const selectedAccount = getAccount(selectedAccountId);
+   const metrics = useMemo(() => getYearMetrics(selectedAccountId, selectedYear), [selectedAccountId, selectedYear, getYearMetrics]);
+ 
