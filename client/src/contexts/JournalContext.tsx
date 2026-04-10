@@ -32,6 +32,7 @@ export interface TradeEntry {
   profit: number;
   instrument: string;
   notes: string;
+  commission: number;
   imageUrl: string;
   createdAt: string;
 }
@@ -126,6 +127,7 @@ function convertTrade(trade: dataService.Trade): TradeEntry {
     profit: trade.profit,
     instrument: trade.instrument,
     notes: trade.notes,
+    commission: trade.commission || 0,
     imageUrl: trade.imageUrl || "",
     createdAt: trade.created_at,
   };
@@ -152,6 +154,7 @@ function unconvertTrade(trade: TradeEntry): dataService.Trade {
     profit: trade.profit,
     instrument: trade.instrument,
     notes: trade.notes,
+    commission: trade.commission || 0,
     imageUrl: trade.imageUrl,
     created_at: trade.createdAt,
   };
@@ -298,6 +301,7 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
         profit: trade.profit,
         instrument: trade.instrument,
         notes: trade.notes,
+        commission: trade.commission || 0,
         imageUrl: trade.imageUrl,
       });
 
@@ -319,6 +323,7 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
       if (updates.profit !== undefined) updateData.profit = updates.profit;
       if (updates.instrument) updateData.instrument = updates.instrument;
       if (updates.notes) updateData.notes = updates.notes;
+      if (updates.commission !== undefined) updateData.commission = updates.commission;
       if (updates.imageUrl) updateData.imageUrl = updates.imageUrl;
 
       const updated = await dataService.updateTrade(tradeId, updateData);
@@ -386,7 +391,7 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
       if (!account) return 0;
 
       const trades = getTradesByAccount(accountId);
-      const totalProfit = trades.reduce((sum, t) => sum + t.profit, 0);
+      const totalProfit = trades.reduce((sum, t) => sum + t.profit - (t.commission || 0), 0);
       return account.initialBalance + totalProfit;
     },
     [data.accounts, getTradesByAccount]
@@ -423,7 +428,7 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
       const tpCount = trades.filter((t) => t.result === "TP").length;
       const slCount = trades.filter((t) => t.result === "SL").length;
       const beCount = trades.filter((t) => t.result === "BE").length;
-      const totalProfit = trades.reduce((sum, t) => sum + t.profit, 0);
+      const totalProfit = trades.reduce((sum, t) => sum + t.profit - (t.commission || 0), 0);
       const currentBalance = account.initialBalance + totalProfit;
       const returnPct = (totalProfit / account.initialBalance) * 100;
       const winrate = trades.length > 0 ? (tpCount / trades.length) * 100 : 0;
@@ -480,7 +485,8 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
 
       // Profit factor
       const wins = trades.filter((t) => t.profit > 0).reduce((sum, t) => sum + t.profit, 0);
-      const losses = Math.abs(trades.filter((t) => t.profit < 0).reduce((sum, t) => sum + t.profit, 0));
+      const losses = Math.abs(trades.filter((t) => t.profit < 0).reduce((sum, t) => sum + t.profit, 0)) + 
+                     trades.reduce((sum, t) => sum + (t.commission || 0), 0);
       const profitFactor = losses > 0 ? wins / losses : wins > 0 ? 999 : 0;
 
       // Max drawdown
@@ -507,7 +513,7 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
       const sortedTrades = [...trades].sort((a, b) => a.date.localeCompare(b.date));
 
       for (const trade of sortedTrades) {
-        balance += trade.profit;
+        balance += (trade.profit - (trade.commission || 0));
         equityCurve.push({ date: trade.date, balance });
       }
 

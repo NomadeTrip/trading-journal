@@ -56,6 +56,11 @@ export default function TradeItem({ trade, onEdit, onDelete }: TradeItemProps) {
             <span className={cn("text-sm font-mono font-bold", trade.profit >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")}>
               {trade.profit >= 0 ? "+" : ""}${trade.profit.toFixed(2)}
             </span>
+            {trade.commission > 0 && (
+              <span className="text-[10px] font-mono font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700">
+                com: -${trade.commission.toFixed(2)}
+              </span>
+            )}
           </div>
           {trade.notes && (
             <p className="text-xs opacity-70 dark:opacity-60 truncate text-gray-600 dark:text-gray-400">{trade.notes}</p>

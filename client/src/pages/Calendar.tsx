@@ -4,7 +4,7 @@
  * TP=verde esmeralda, SL=rojo coral, BE=gris neutro
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -97,6 +97,7 @@ export default function CalendarPage() {
     getAccount,
     getAccountBalance,
     getAllAccounts,
+    getTradesByAccount: getTradesByAccountFn,
   } = useJournal();
 
   const today = new Date();
@@ -204,11 +205,35 @@ export default function CalendarPage() {
     return null;
   };
 
-  // Calculate day profit
+  // Calculate day profit (net profit = profit - commission)
   const getDayProfit = (day: number) => {
     const trades = getTradesForDay(day);
-    return trades.reduce((sum, t) => sum + t.profit, 0);
+    return trades.reduce((sum, t) => sum + t.profit - (t.commission || 0), 0);
   };
+
+  // Calculate balance at the start of each day (before that day's trades)
+  const getBalanceBeforeDay = useCallback((day: number): number => {
+    const account = getAccount(selectedAccountId);
+    if (!account) return 0;
+
+    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const allTrades = getTradesByAccountFn(selectedAccountId);
+    
+    // Get all trades before this day
+    const tradesBeforeDay = allTrades.filter((t) => t.date < dateStr);
+    const totalProfitBefore = tradesBeforeDay.reduce((sum, t) => sum + t.profit - (t.commission || 0), 0);
+    
+    return account.initialBalance + totalProfitBefore;
+  }, [selectedAccountId, year, month, getAccount, getTradesByAccountFn]);
+
+  // Calculate daily return percentage
+  const getDayReturnPercentage = useCallback((day: number): number => {
+    const dayProfit = getDayProfit(day);
+    const balanceBefore = getBalanceBeforeDay(day);
+    
+    if (balanceBefore === 0) return 0;
+    return (dayProfit / balanceBefore) * 100;
+  }, [getBalanceBeforeDay]);
 
   return (
     <div className="min-h-screen bg-[#F8F9FB] dark:bg-gray-950 p-6">
@@ -392,7 +417,7 @@ export default function CalendarPage() {
 
                     {/* Trade data */}
                     {dayTrades.length > 0 && (
-                      <div className="flex-1 flex flex-col justify-end">
+                      <div className="flex-1 flex flex-col justify-end gap-1">
                         <p
                           className={cn(
                             "text-xs font-bold font-mono leading-none",
@@ -404,6 +429,18 @@ export default function CalendarPage() {
                           )}
                         >
                           {formatCurrency(dayProfit)}
+                        </p>
+                        <p
+                          className={cn(
+                            "text-[10px] font-semibold font-mono leading-none",
+                            getDayReturnPercentage(day) > 0
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : getDayReturnPercentage(day) < 0
+                              ? "text-red-600 dark:text-red-400"
+                              : "text-gray-500 dark:text-gray-400"
+                          )}
+                        >
+                          {getDayReturnPercentage(day) > 0 ? "+" : ""}{getDayReturnPercentage(day).toFixed(2)}%
                         </p>
                       </div>
                     )}

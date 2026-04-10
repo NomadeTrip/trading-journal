@@ -23,13 +23,15 @@ export default function ExportData({ accountId, year }: ExportDataProps) {
     const metrics = getYearMetrics(accountId, year);
 
     // CSV headers
-    const headers = ["Fecha", "Cuenta", "Instrumento", "Resultado", "Profit/Pérdida", "Notas"];
+    const headers = ["Fecha", "Cuenta", "Instrumento", "Resultado", "Profit/Pérdida", "Comisión", "Profit Neto", "Notas"];
     const rows = trades.map((t) => [
       t.date,
       account.name,
       t.instrument,
       t.result || "—",
       t.profit,
+      t.commission || 0,
+      t.profit - (t.commission || 0),
       t.notes.replace(/"/g, '""'),
     ]);
 
@@ -134,27 +136,33 @@ export default function ExportData({ accountId, year }: ExportDataProps) {
         <h2>Trades del Año</h2>
         <table>
           <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Instrumento</th>
-              <th>Resultado</th>
-              <th>Profit/Pérdida</th>
-              <th>Notas</th>
-            </tr>
+	            <tr>
+	              <th>Fecha</th>
+	              <th>Instrumento</th>
+	              <th>Resultado</th>
+	              <th>Profit/Pérdida</th>
+	              <th>Comisión</th>
+	              <th>Neto</th>
+	              <th>Notas</th>
+	            </tr>
           </thead>
           <tbody>
             ${trades
               .map(
                 (t) => `
-              <tr>
-                <td>${t.date}</td>
-                <td>${t.instrument}</td>
-                <td>${t.result || "—"}</td>
-                <td class="${t.profit >= 0 ? "positive" : "negative"}">
-                  ${t.profit >= 0 ? "+" : ""}$${t.profit.toFixed(2)}
-                </td>
-                <td>${t.notes.substring(0, 50)}${t.notes.length > 50 ? "..." : ""}</td>
-              </tr>
+	              <tr>
+	                <td>${t.date}</td>
+	                <td>${t.instrument}</td>
+	                <td>${t.result || "—"}</td>
+	                <td class="${t.profit >= 0 ? "positive" : "negative"}">
+	                  ${t.profit >= 0 ? "+" : ""}$${t.profit.toFixed(2)}
+	                </td>
+	                <td>$${(t.commission || 0).toFixed(2)}</td>
+	                <td class="${(t.profit - (t.commission || 0)) >= 0 ? "positive" : "negative"}">
+	                  $${(t.profit - (t.commission || 0)).toFixed(2)}
+	                </td>
+	                <td>${t.notes.substring(0, 50)}${t.notes.length > 50 ? "..." : ""}</td>
+	              </tr>
             `
               )
               .join("")}

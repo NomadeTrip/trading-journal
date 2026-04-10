@@ -9,6 +9,7 @@ export interface Trade {
   profit: number;
   instrument: string;
   notes: string;
+  commission: number;
   imageUrl?: string;
   created_at: string;
 }
@@ -46,6 +47,7 @@ export async function getTrades(): Promise<Trade[]> {
     profit: trade.profit,
     instrument: trade.instrument,
     notes: trade.notes,
+    commission: trade.commission || 0,
     imageUrl: trade.image_url,
     created_at: trade.created_at,
   }));
@@ -72,6 +74,7 @@ export async function getTradesByAccount(accountId: string): Promise<Trade[]> {
     profit: trade.profit,
     instrument: trade.instrument,
     notes: trade.notes,
+    commission: trade.commission || 0,
     imageUrl: trade.image_url,
     created_at: trade.created_at,
   }));
@@ -98,6 +101,7 @@ export async function getTradesByDate(date: string): Promise<Trade[]> {
     profit: trade.profit,
     instrument: trade.instrument,
     notes: trade.notes,
+    commission: trade.commission || 0,
     imageUrl: trade.image_url,
     created_at: trade.created_at,
   }));
@@ -125,6 +129,7 @@ export async function getTradeById(id: string): Promise<Trade | null> {
     profit: data.profit,
     instrument: data.instrument,
     notes: data.notes,
+    commission: data.commission || 0,
     imageUrl: data.image_url,
     created_at: data.created_at,
   };
@@ -147,6 +152,7 @@ export async function createTrade(trade: Omit<Trade, 'id' | 'created_at'>): Prom
         profit: trade.profit,
         instrument: trade.instrument,
         notes: trade.notes,
+        commission: trade.commission || 0,
         image_url: trade.imageUrl,
       },
     ])
@@ -163,6 +169,7 @@ export async function createTrade(trade: Omit<Trade, 'id' | 'created_at'>): Prom
     profit: data.profit,
     instrument: data.instrument,
     notes: data.notes,
+    commission: data.commission || 0,
     imageUrl: data.image_url,
     created_at: data.created_at,
   };
@@ -177,6 +184,7 @@ export async function updateTrade(id: string, updates: Partial<Omit<Trade, 'id' 
   if (updates.profit !== undefined) updateData.profit = updates.profit;
   if (updates.instrument !== undefined) updateData.instrument = updates.instrument;
   if (updates.notes !== undefined) updateData.notes = updates.notes;
+  if (updates.commission !== undefined) updateData.commission = updates.commission;
   if (updates.imageUrl !== undefined) updateData.image_url = updates.imageUrl;
 
   const { data, error } = await supabase
@@ -198,6 +206,7 @@ export async function updateTrade(id: string, updates: Partial<Omit<Trade, 'id' 
     profit: data.profit,
     instrument: data.instrument,
     notes: data.notes,
+    commission: data.commission || 0,
     imageUrl: data.image_url,
     created_at: data.created_at,
   };

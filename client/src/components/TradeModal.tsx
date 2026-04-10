@@ -19,7 +19,7 @@ interface TradeModalProps {
   date: string; // "YYYY-MM-DD"
   accountId: string;
   existingTradeId?: string;
-  onSave: (trade: { result: TradeResult; profit: number; instrument: string; notes: string; imageUrl: string }) => void | Promise<void>;
+  onSave: (trade: { result: TradeResult; profit: number; instrument: string; commission: number; notes: string; imageUrl: string }) => void | Promise<void>;
   onDelete?: () => void;
 }
 
@@ -80,6 +80,9 @@ export default function TradeModal({
   const [profitStr, setProfitStr] = useState(
     existingTrade ? String(existingTrade.profit) : ""
   );
+  const [commissionStr, setCommissionStr] = useState(
+    existingTrade ? String(existingTrade.commission) : ""
+  );
   const [instrument, setInstrument] = useState(existingTrade?.instrument ?? "");
   const [showInstrumentSuggestions, setShowInstrumentSuggestions] = useState(false);
   const [notes, setNotes] = useState(existingTrade?.notes ?? "");
@@ -110,6 +113,7 @@ export default function TradeModal({
     const tradeData = {
       result,
       profit: parseFloat(profitStr),
+      commission: parseFloat(commissionStr) || 0,
       instrument,
       notes,
       imageUrl,
@@ -201,6 +205,23 @@ export default function TradeModal({
               onChange={(e) => setProfitStr(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
             />
+          </div>
+
+          {/* Comisión */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
+              COMISIÓN (USD)
+            </label>
+            <input
+              type="number"
+              placeholder="0.00"
+              value={commissionStr}
+              onChange={(e) => setCommissionStr(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+            />
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+              Este gasto se descontará del balance pero no contará como un trade adicional.
+            </p>
           </div>
 
           {/* Instrumento */}
